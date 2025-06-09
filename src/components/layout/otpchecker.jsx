@@ -1,8 +1,7 @@
+import axios from 'axios';
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-// import logoWithoutText from '../../../assets/images/easyjobwithouttext.png';
 
-const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false }) => {
+const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false, email = '' }) => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [timeLeft, setTimeLeft] = useState(180);
     const [error, setError] = useState('');
@@ -61,22 +60,20 @@ const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false }) => {
                     throw new Error(data.error || 'Invalid OTP');
                 }
             } else {
-                const response = await fetch('http://localhost:8080/verify-otp', {
-                    method: 'POST',
+                const response = await axios.post(`http://localhost:5000/api/user/verify-register/${email}`, {
+                    otp: otp.join(''),
+                }, {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    credentials: 'include',
-                    body: JSON.stringify({ otp: otp.join('') })
+                    withCredentials: true
                 });
 
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Invalid OTP');
+                if (response.status === 200) {
+                    console.log('OTP verified successfully:', response.data);
+                    onSuccess();
                 }
             }
-
-            onSuccess();
         } catch (err) {
             setError(err.message || 'Failed to verify OTP');
         } finally {
