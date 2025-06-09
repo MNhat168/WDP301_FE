@@ -15,25 +15,24 @@ const Login = () => {
   const handleLogin = async () => {
     try {
       const credentials = { email, password };
-      const response = await axios.post("http://localhost:8080/login", credentials, {
+      const response = await axios.post("http://localhost:5000/api/user/login", credentials, {
         headers: {
           "Content-Type": "application/json",
         },
         withCredentials: true
       });
   
-      const user = response.data;
-      
+      const user = response.data.userData;
       if (user.status === 'banned') {
         setError("Your account has been banned. Please contact support for assistance.");
         return;
       }
   
-      localStorage.setItem("user", JSON.stringify(user));
-      if (user.role && user.role.roleId === 1) {
-        navigate("/admin/home");
-      } else {
+      localStorage.setItem("user", JSON.stringify(user.userData));
+      if (user.roleId && user.roleId.roleName === 'ROLE_JOBSEEKER') {
         navigate("/home");
+      } else {
+        navigate("/admin/home");
       }
     } catch (error) {
       console.error("Login error:", error.response ? error.response.data : error.message);
