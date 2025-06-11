@@ -8,7 +8,10 @@ const RegisterEmployer = () => {
         firstname: "",
         lastname: "",
         email: "",
-        password: ""
+        password: "",
+        username: "",
+        dateOfBirth: "",
+        phone: ""
     });
     const [error, setError] = useState("");
     const [showOtpModal, setShowOtpModal] = useState(false);
@@ -18,18 +21,21 @@ const RegisterEmployer = () => {
     const handleRegister = async () => {
         setIsLoading(true);
         try {
-            const formDataToSend = new FormData();
-            formDataToSend.append('firstname', formData.firstname);
-            formDataToSend.append('lastname', formData.lastname);
-            formDataToSend.append('email', formData.email);
-            formDataToSend.append('password', formData.password);
+            const dataToSend = {
+                firstname: formData.firstname,
+                lastname: formData.lastname,
+                email: formData.email,
+                password: formData.password,
+                username: formData.username,
+                dateOfBirth: formData.dateOfBirth,
+                phone: formData.phone
+            };
 
-            const response = await axios.post(
-                "http://localhost:8080/register-employer",
-                formDataToSend,
+            const response = await axios.post('http://localhost:5000/api/user/register-employer',
+                dataToSend,  // Send as JSON
                 {
                     headers: {
-                        'Content-Type': 'multipart/form-data',
+                        'Content-Type': 'application/json',  // Changed to JSON content type
                     },
                     withCredentials: true
                 }
@@ -73,6 +79,7 @@ const RegisterEmployer = () => {
                             }}
                             onClose={() => setShowOtpModal(false)}
                             isEmployer={true}
+                            email={formData.email}
                         />
                     </div>
                 </div>
@@ -111,7 +118,7 @@ const RegisterEmployer = () => {
                         </div>
     
                         <div className="space-y-6">
-                            {/* First Name */}
+                            {/* First Name & Last Name */}
                             <div className="flex gap-4">
                                 <div className="relative w-1/2">
                                     <input
@@ -140,20 +147,65 @@ const RegisterEmployer = () => {
                                     </label>
                                 </div>
                             </div>
-    
-                            {/* Email */}
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    name="email"
-                                    className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder=" "
-                                />
-                                <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                    Email
-                                </label>
+
+                            {/* Username & Email */}
+                            <div className="flex gap-4">
+                                <div className="relative w-1/2">
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        value={formData.username}
+                                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                        placeholder=" "
+                                    />
+                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
+                                        Username
+                                    </label>
+                                </div>
+                                <div className="relative w-1/2">
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder=" "
+                                    />
+                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
+                                        Email
+                                    </label>
+                                </div>
+                            </div>
+
+                            {/* Phone & Date of Birth */}
+                            <div className="flex gap-4">
+                                <div className="relative w-1/2">
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder=" "
+                                    />
+                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
+                                        Phone Number
+                                    </label>
+                                </div>
+                                <div className="relative w-1/2">
+                                    <input
+                                        type="date"
+                                        name="dateOfBirth"
+                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        value={formData.dateOfBirth}
+                                        onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                                        placeholder=" "
+                                    />
+                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
+                                        Date of Birth
+                                    </label>
+                                </div>
                             </div>
     
                             {/* Password */}

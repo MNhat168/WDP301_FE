@@ -52,9 +52,19 @@ const useBanCheck = () => {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return;
 
+            // Get user ID from different possible fields
+            const userId = user._id || user.userId || user.userData?._id || user.userData?.userId;
+            if (!userId) {
+                console.error('No user ID found in stored user data');
+                return;
+            }
+
             try {
-                const response = await axios.get(`http://localhost:8080/admin/users/check-status/${user.userId}`, {
-                    withCredentials: true
+                const response = await axios.get(`http://localhost:5000/api/admin/users/check-status/${userId}`, {
+                    withCredentials: true,
+                    headers: {
+                        'Authorization': `Bearer ${user.accessToken}`
+                    }
                 });
 
                 if (response.data.status === 'banned') {
@@ -63,6 +73,8 @@ const useBanCheck = () => {
                 }
             } catch (error) {
                 console.error('Error checking ban status:', error);
+                // If the API endpoint doesn't exist, you might want to disable this check
+                // or use a different endpoint
             }
         };
 

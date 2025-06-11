@@ -22,14 +22,14 @@ const Login = () => {
         withCredentials: true
       });
   
-      const user = response.data.userData;
+      const user = response.data;
       if (user.status === 'banned') {
         setError("Your account has been banned. Please contact support for assistance.");
         return;
       }
   
-      localStorage.setItem("user", JSON.stringify(user.userData));
-      if (user.roleId && user.roleId.roleName === 'ROLE_JOBSEEKER') {
+      localStorage.setItem("user", JSON.stringify(user));
+      if (user.userData.roleId && user.userData.roleId.roleName === 'ROLE_JOBSEEKER') {
         navigate("/home");
       } else {
         navigate("/admin/home");

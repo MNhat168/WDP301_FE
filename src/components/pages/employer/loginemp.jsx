@@ -11,11 +11,12 @@ const LoginEmp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async () => {
+    console.log("vao day r ne")
     setIsLoading(true);
     try {
-      const response = await axios.post("http://localhost:8080/login", formData, {
+      const credentials = { email: formData.email, password: formData.password };
+      const response = await axios.post("http://localhost:5000/api/user/login", credentials, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -23,28 +24,19 @@ const LoginEmp = () => {
       });
   
       const user = response.data;
-  
-      // Check if user is banned
       if (user.status === 'banned') {
         setError("Your account has been banned. Please contact support for assistance.");
-        setIsLoading(false);
         return;
       }
   
       localStorage.setItem("user", JSON.stringify(user));
-      const roleId = user.role.roleId;
-      if (roleId === 2) { 
-        localStorage.setItem("user", JSON.stringify(user));
+      if (user.userData.roleId && user.userData.roleId.roleName === 'ROLE_EMPLOYEE') {
         navigate("/homeemp");
-      } else if (user.role && user.role.roleId === 1) {
-        navigate("/admin/home");
       } else {
-        setError("Invalid account type. Please use the correct login page.");
+        navigate("/admin/home");
       }
-      
-      
     } catch (error) {
-      console.error("Login error:", error.response?.data || error.message);
+      console.error("Login error:", error.response ? error.response.data : error.message);
       setError(error.response?.status === 403 
         ? "Your account has been banned. Please contact support for assistance."
         : "Invalid email or password.");
