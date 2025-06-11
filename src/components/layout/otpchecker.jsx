@@ -44,20 +44,18 @@ const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false, email = 
         setIsVerifying(true);
         try {
             if (isEmployer) {
-                const formData = new FormData();
-                otp.forEach((digit, index) => {
-                    formData.append(`otp-input${index + 1}`, digit);
+                const response = await axios.post(`http://localhost:5000/api/user/verify-register/${email}`, {
+                    otp: otp.join(''),
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    withCredentials: true
                 });
 
-                const response = await fetch('http://localhost:8080/verify-otp-employer', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Invalid OTP');
+                if (response.status === 200) {
+                    console.log('OTP verified successfully:', response.data);
+                    onSuccess();
                 }
             } else {
                 const response = await axios.post(`http://localhost:5000/api/user/verify-register/${email}`, {

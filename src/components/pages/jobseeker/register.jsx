@@ -35,7 +35,7 @@ const Register = () => {
                 phone: formData.phone
             };
 
-            const response = await axios.post('http://localhost:5000/api/user/register',
+            const response = await axios.post('http://localhost:5000/api/user/register-jobseeker',
                 dataToSend,  // Send as JSON
                 {
                     headers: {

@@ -35,8 +35,13 @@ const ChatBox = () => {
       hasInitialized.current = true; // Đánh dấu đã khởi tạo
 
       try {
-        const response = await fetch("http://localhost:8080/user/current", {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const response = await fetch("http://localhost:5000/api/user/current", {
           credentials: "include",
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${user.accessToken}`
+          }
         });
         const data = await response.json();
         if (data.userId) {
