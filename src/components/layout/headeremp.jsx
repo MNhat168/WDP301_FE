@@ -11,14 +11,14 @@ const HeaderEmployer = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const user = localStorage.getItem("user");
-    setIsLoggedIn(!!user);
+  // useEffect(() => {
+  //   const user = localStorage.getItem("user");
+  //   setIsLoggedIn(!!user);
 
-    if (user) {
-      fetchNotifications();
-    }
-  }, []);
+  //   if (user) {
+  //     fetchNotifications();
+  //   }
+  // }, []);
 
   const fetchNotifications = async () => {
     try {
@@ -132,7 +132,7 @@ const HeaderEmployer = () => {
         <ul className="hidden sm:flex items-center space-x-2">
           <li>
             <Link
-              to="/create-or-update-company-profile"
+              to="/company"
               className="group flex items-center space-x-2 px-4 py-2 rounded-xl bg-white/40 backdrop-blur-sm hover:bg-white/60 text-gray-700 hover:text-blue-600 font-medium transition-all duration-300 hover:shadow-lg"
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -334,7 +334,7 @@ const HeaderEmployer = () => {
         <div className="sm:hidden bg-white/95 backdrop-blur-lg border-t border-white/20">
           <div className="px-6 py-4 space-y-2">
             <Link
-              to="/create-or-update-company-profile"
+              to="/company"
               className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-blue-50 transition-all duration-300"
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -400,8 +400,6 @@ const HeaderEmployer = () => {
           </div>
         </div>
       )}
-      
-      <ChatBox />
     </header>
   );
 };

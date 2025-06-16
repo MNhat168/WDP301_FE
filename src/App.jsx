@@ -45,6 +45,7 @@ import Application from "./components/pages/jobseeker/application";
 import JobList from "./components/pages/admin/jobmanagement";
 import DoTest from "./components/pages/employer/dotest";
 import SkillTestMark from "./components/pages/employer/skilltestmark";
+import ChatBox from "./components/layout/chatbox";
 
 
 const App = () => {
@@ -76,7 +77,7 @@ const App = () => {
           <Route path="/admin/packages" element={<PackageManagement />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/about-us" element={<About />} />
-          <Route path="/create-or-update-company-profile" element={<CompanyDetail />} />
+          <Route path="/company" element={<CompanyDetail />} />
           <Route path="/edit-profile-company" element={<EditProfileCompany />} />
           <Route path="/jobslist" element={<ListJobCreate />} />
           <Route path="/create-job" element={<CreateJob />} />
@@ -102,6 +103,7 @@ const App = () => {
           <Route path="/doskilltest" element={<DoTest />} />
           <Route path="/skill-test-result" element={<SkillTestMark />} />
         </Routes>
+        <ChatBox />
       </div>
     </Router>
   );

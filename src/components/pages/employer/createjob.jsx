@@ -9,10 +9,9 @@ import L from "leaflet";
 
 const CreateJob = () => {
   const [categories, setCategories] = useState([]);
-  const [company, setCompany] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
-    cateID: "",
+    categoryId: "",
     description: "",
     requirements: [""],
     benefits: [""],
@@ -33,17 +32,22 @@ const CreateJob = () => {
   const [isLocationFetched, setIsLocationFetched] = useState(false);
   const BanPopup = useBanCheck();
   const [location, setLocation] = useState("");
+  
+  // Custom select states
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("http://localhost:5000/api/jobs/categories", {
+        const response = await fetch("http://localhost:5000/api/categories/", {
           method: "GET",
           credentials: "include",
         });
         if (response.ok) {
           const data = await response.json();
-          setCategories(data.categories || []);
+          setCategories(data.result.categories || []);
         } else {
           setMessage({ type: "error", text: "Failed to fetch categories." });
         }
@@ -77,6 +81,35 @@ const CreateJob = () => {
       setIsLocationFetched(true);
     }
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isDropdownOpen && !event.target.closest('.relative')) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
+
+  // Custom select helper functions
+  const filteredCategories = categories.filter(category =>
+    category.categoryName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category);
+    setFormData(prev => ({
+      ...prev,
+      categoryId: category.categoryId
+    }));
+    setSearchTerm("");
+    setIsDropdownOpen(false);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -124,6 +157,14 @@ const CreateJob = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate category selection
+    if (!selectedCategory) {
+      setMessage({ type: "error", text: "Please select a job category." });
+      return;
+    }
+    
+    const user = JSON.parse(localStorage.getItem("user"));
+    
     // Filter out empty strings from arrays
     const cleanedData = {
       ...formData,
@@ -131,30 +172,33 @@ const CreateJob = () => {
       benefits: formData.benefits.filter(benefit => benefit.trim() !== ""),
       skills: formData.skills.filter(skill => skill.trim() !== ""),
       location: location || `${position[0]}, ${position[1]}`,
-      salary: {
-        min: parseInt(formData.salary.min),
-        max: parseInt(formData.salary.max),
-        currency: formData.salary.currency
-      }
+      salary: parseInt(formData.salary.min) || parseInt(formData.salary.max) || 0,
+      salaryMin: parseInt(formData.salary.min) || 0,
+      salaryMax: parseInt(formData.salary.max) || 0,
+      currency: formData.salary.currency,
+      companyId: user.userData?.companyInfo?._id,
+      categoryId: selectedCategory.categoryId // Use selectedCategory.categoryId to match the data structure
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/job/create", {
+      const response = await fetch("http://localhost:5000/api/jobs/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          'Authorization': `Bearer ${user.accessToken}`
         },
         body: JSON.stringify(cleanedData),
         credentials: "include",
       });
 
-      if (response.ok) {
+      if (response.status === 200) {
         const data = await response.json();
         setMessage({ type: "success", text: "Job posted successfully!" });
         // Reset form
         setFormData({
+          companyId: user.userData?.companyInfo?._id,
           title: "",
-          cateID: "",
+          categoryId: "",
           description: "",
           requirements: [""],
           benefits: [""],
@@ -166,6 +210,8 @@ const CreateJob = () => {
           skills: [""],
           deadline: "",
         });
+        setSelectedCategory(null);
+        setSearchTerm("");
       } else {
         const errorData = await response.json();
         setMessage({ type: "error", text: errorData.message || "Failed to create job." });
@@ -301,20 +347,63 @@ const CreateJob = () => {
                     <label className="block text-sm font-semibold text-gray-700">
                       Job Category *
                     </label>
-                    <select
-                      name="cateID"
-                      value={formData.cateID}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all duration-300"
+                    <div className="relative">
+                      {/* Custom Select Button */}
+                      <button
+                        type="button"
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all duration-300 bg-white text-left flex items-center justify-between"
                     >
-                      <option value="">Select Category</option>
-                      {categories.map((category) => (
-                        <option key={category.categoryId} value={category.categoryId}>
+                        <span className={selectedCategory ? "text-gray-900" : "text-gray-500"}>
+                          {selectedCategory ? selectedCategory.categoryName : "Select Category"}
+                        </span>
+                        <svg 
+                          className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Dropdown */}
+                      {isDropdownOpen && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden">
+                          {/* Search Input */}
+                          <div className="p-3 border-b border-gray-100">
+                            <input
+                              type="text"
+                              placeholder="Search categories..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                              autoFocus
+                            />
+                          </div>
+                          
+                          {/* Options List */}
+                          <div className="max-h-48 overflow-y-auto">
+                            {filteredCategories.length > 0 ? (
+                              filteredCategories.map((category) => (
+                                <button
+                                  key={category.categoryId}
+                                  type="button"
+                                  onClick={() => handleCategorySelect(category)}
+                                  className="w-full px-4 py-3 text-left hover:bg-blue-50 hover:text-blue-600 transition-colors duration-150 border-b border-gray-50 last:border-b-0"
+                                >
                           {category.categoryName}
-                        </option>
-                      ))}
-                    </select>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-gray-500 text-center">
+                                No categories found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Job Type */}

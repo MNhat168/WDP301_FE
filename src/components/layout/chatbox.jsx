@@ -1,8 +1,15 @@
-import { set } from "date-fns";
 import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import Stomp from "stompjs";
 import { DateTime } from "luxon";
+import {
+  FiMessageSquare,
+  FiX,
+  FiChevronDown,
+  FiSend,
+  FiArrowLeft,
+  FiSearch,
+} from "react-icons/fi";
 
 const ChatBox = () => {
   const [isChatboxOpen, setIsChatboxOpen] = useState(false);
@@ -19,15 +26,20 @@ const ChatBox = () => {
   const chatInputRef = useRef(null);
   const hasInitialized = useRef(false);
   const [visibleTimestamps, setVisibleTimestamps] = useState([]); // Lưu trữ các tin nhắn hiển thị thời gian
-  const [position, setPosition] = useState({ top: 620, left: 1400 }); // Vị trí ban đầu của chat icon
+  const [position, setPosition] = useState({ top: 750, left: 1600 }); // Vị trí ban đầu của chat icon
   const [isDragging, setIsDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const [isMinimized, setIsMinimized] = React.useState(false);
-  const [showMinimizedBar, setShowMinimizedBar] = useState(false);
-  const [minimizedReceiverId, setMinimizedReceiverId] = useState(null);
-  const [minimizedReceiverName, setMinimizedReceiverName] = useState("");
+  const [isMinimized, setIsMinimized] = useState(false);
   const [minimizedBars, setMinimizedBars] = useState([]);
-  const [activeReceiverIds, setActiveReceiverIds] = useState([]); // Danh sách các activeReceiverId
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messagesState]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -393,6 +405,23 @@ if (parsedMessage.receiver.userId === userId) {
     });
   };
 
+  const sentTimeToDate = (sentTime) => {
+    if (Array.isArray(sentTime) && sentTime.length >= 6) {
+      // a month is 0-indexed in Date, so month - 1
+      return new Date(
+        Date.UTC(
+          sentTime[0],
+          sentTime[1] - 1,
+          sentTime[2],
+          sentTime[3],
+          sentTime[4],
+          sentTime[5]
+        )
+      );
+    }
+    return new Date(sentTime);
+  };
+
   return (
     <div
       className="chatbox fixed z-50"
@@ -400,17 +429,17 @@ if (parsedMessage.receiver.userId === userId) {
       onMouseDown={handleMouseDown}
     >
       {/* Icon Chat */}
-      {(!isChatboxOpen || isMinimized) && (
+      {!isChatboxOpen && (
         <div
-          className="chat-icon z-50 bg-gradient-to-r from-blue-500 to-blue-700 text-white p-4 rounded-full shadow-md cursor-pointer hover:scale-110 transition-transform duration-300 ease-in-out"
+          className="chat-icon z-50 bg-blue-600 text-white p-4 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform duration-300 ease-in-out flex items-center justify-center"
           onClick={() => {
             setIsMinimized(false); // Mở lại chatbox
             handleToggleChatbox(); // Mở chatbox
           }}
         >
-          💬
+          <FiMessageSquare size={24} />
           {unreadCount > 0 && (
-            <span className="unread-count absolute top-0 right-0 bg-red-600 text-white text-xs rounded-full px-2 py-1 shadow-md">
+            <span className="unread-count absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full px-2 py-1 shadow-md">
               {unreadCount}
             </span>
           )}
@@ -419,13 +448,11 @@ if (parsedMessage.receiver.userId === userId) {
 
       {/* Render các thanh thu nhỏ */}
       {minimizedBars.length > 0 && (
-        <div className="flex fixed bottom-10 right-40 space-x-4">
+        <div className="flex fixed bottom-0 right-24 space-x-2">
           {minimizedBars.map((bar) => (
             <div
               key={bar.id}
-              className={`minimized-bar bg-blue-600 text-white p-2 rounded-t-lg shadow-md cursor-pointer w-[250px] flex justify-between items-center ${
-                bar.isMinimized ? "block" : "block"
-              }`}
+              className="minimized-bar bg-white dark:bg-gray-800 rounded-t-lg shadow-md cursor-pointer w-[250px] flex justify-between items-center border border-b-0"
               onClick={() => {
                 setActiveReceiverId(bar.id);
                 // Cập nhật activeReceiverName khi click vào thanh thu nhỏ
@@ -434,29 +461,26 @@ if (parsedMessage.receiver.userId === userId) {
                   prevBars.filter((b) => b.id !== bar.id)
                 );
                 // Mở lại chatbox khi click vào thanh thu nhỏ
-                setShowMinimizedBar(false);
                 setIsChatboxOpen(true);
                 setIsMinimized(false);
                 loadMessages(bar.id); // Load tin nhắn cho người dùng đúng
                 markMessagesAsRead(currentUserId, bar.id);
                 updateUnreadMessageCounts(currentUserId);
-
-               
               }}
             >
-              {/* Hiển thị tên người trò chuyện */}
-              <span className="font-bold">{bar.name}</span>
-
-              {/* Hiển thị số lượng tin nhắn chưa đọc */}
-              {unreadCounts[bar.id] > 0 && (
-                <span className="unread-count bg-red-500 text-white rounded-full text-xs px-2 py-1">
-                  {unreadCounts[bar.id]}
+              <div className="p-3 flex items-center">
+                <span className="font-bold text-gray-800 dark:text-white">
+                  {bar.name}
                 </span>
-              )}
-
+                {unreadCounts[bar.id] > 0 && (
+                  <span className="ml-2 unread-count bg-red-500 text-white rounded-full text-xs px-2 py-1">
+                    {unreadCounts[bar.id]}
+                  </span>
+                )}
+              </div>
               {/* Nút Tắt */}
               <span
-                className="text-2xl cursor-pointer hover:text-red-400"
+                className="p-2 text-gray-500 hover:text-red-500"
                 onClick={(e) => {
                   e.stopPropagation(); // Ngăn sự kiện click lan ra ngoài
                   setMinimizedBars((prevBars) =>
@@ -464,7 +488,7 @@ if (parsedMessage.receiver.userId === userId) {
                   );
                 }}
               >
-                &times; {/* Icon dấu nhân */}
+                <FiX size={20} />
               </span>
             </div>
           ))}
@@ -473,41 +497,56 @@ if (parsedMessage.receiver.userId === userId) {
 
       {/* Main Chatbox Modal */}
       {isChatboxOpen && !isMinimized && (
-        <div className="chatbox-modal bg-white shadow-2xl rounded-lg w-[350px] max-w-[90%] h-[500px] fixed bottom-0 right-0 flex flex-col transform translate-y-0 opacity-100 transition-all duration-300 ease-out">
+        <div className="chatbox-modal bg-white dark:bg-gray-900 shadow-2xl rounded-lg w-[380px] h-[550px] fixed bottom-0 right-0 flex flex-col transform transition-all duration-300 ease-out border dark:border-gray-700">
           {!activeReceiverId ? (
             <>
               {/* Header */}
-              <div className="chatbox-header bg-gradient-to-r from-blue-500 to-blue-700 text-white px-4 py-3 flex items-center justify-between rounded-t-lg ">
-                <input
-                  type="text"
-                  placeholder="Find by Users or Companies name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 p-2 text-gray-700 bg-gray-100 rounded-md focus:outline-none focus:ring focus:ring-blue-300"
-                />
+              <div className="chatbox-header bg-gray-50 dark:bg-gray-800 px-4 py-3 flex items-center justify-between rounded-t-lg border-b dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  Chats
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className="close-btn text-gray-500 hover:text-red-500 cursor-pointer"
+                    onClick={handleToggleChatbox}
+                  >
+                    <FiX size={24} />
+                  </span>
+                </div>
+              </div>
 
-                <span
-                  className="close-btn text-2xl cursor-pointer hover:text-red-400 ml-4"
-                  onClick={handleToggleChatbox}
-                >
-                  &times;
-                </span>
+              {/* Search Bar */}
+              <div className="p-4 border-b dark:border-gray-700">
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <FiSearch className="text-gray-400" />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search users or companies..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full p-2 pl-10 text-gray-700 bg-gray-100 dark:bg-gray-800 dark:text-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               {/* Search Results */}
               {searchQuery.trim() && (
-                <div className="search-results bg-gray-50 p-4 max-h-[250px] overflow-y-auto border-b border-gray-200">
+                <div className="search-results bg-gray-50 dark:bg-gray-800 p-4 max-h-[250px] overflow-y-auto border-b dark:border-gray-700">
                   {searchResults.length > 0 ? (
                     searchResults.map((result, index) => {
                       const displayName =
                         result.companyName ||
                         `${result.firstName} ${result.lastName}`;
-                      const userType = result.companyName ? " (Công ty)" : "";
+                      const userType = result.companyName
+                        ? " (Company)"
+                        : " (User)";
 
                       return (
                         <div
                           key={index}
-                          className="search-item flex justify-between items-center py-2 px-3 cursor-pointer hover:bg-gray-200 rounded-md"
+                          className="search-item flex items-center py-3 px-3 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md"
                           onClick={() => {
                             const selectedId = result.companyName
                               ? result.user.userId
@@ -517,11 +556,12 @@ if (parsedMessage.receiver.userId === userId) {
                             loadMessages(selectedId);
                           }}
                         >
+                          <div className="w-10 h-10 bg-blue-500 rounded-full flex-shrink-0 mr-3"></div>
                           <div>
-                            <span className="text-black font-semibold">
+                            <span className="text-black dark:text-white font-semibold">
                               {displayName}
                             </span>
-                            <span className="text-gray-500 text-sm ml-2">
+                            <span className="text-gray-500 dark:text-gray-400 text-sm ml-2">
                               {userType}
                             </span>
                           </div>
@@ -529,26 +569,22 @@ if (parsedMessage.receiver.userId === userId) {
                       );
                     })
                   ) : (
-                    <div className="text-center text-gray-500">
-                      User or Company doest't exist.
+                    <div className="text-center text-gray-500 dark:text-gray-400 py-4">
+                      No users or companies found.
                     </div>
                   )}
                 </div>
               )}
 
               {/* Recent Chats */}
-              <div className="recent-chats flex-1 overflow-y-auto p-4">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800 text-center">
-                  Recents Chats
-                </h3>
-
+              <div className="recent-chats flex-1 overflow-y-auto p-2">
                 {recentChatsList.length > 0 ? (
                   recentChatsList.map((chat) => {
                     const unreadCount = unreadCounts[chat.userId] || 0;
                     return (
                       <div
                         key={chat.userId}
-                        className="chat-item py-2 px-3 flex justify-between items-center rounded-md hover:bg-gray-200 cursor-pointer"
+                        className="chat-item py-3 px-3 flex justify-between items-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                         onClick={() => {
                           setActiveReceiverId(chat.userId);
 
@@ -560,20 +596,27 @@ if (parsedMessage.receiver.userId === userId) {
                           updateUnreadMessageCounts(currentUserId);
                         }}
                       >
-                        <span className="text-black font-medium">
-                          {chat.firstName} {chat.lastName}
-                        </span>
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 bg-gray-300 rounded-full mr-4 flex-shrink-0"></div>
+                          <div className="flex-grow">
+                            <span className="text-black dark:text-white font-medium">
+                              {chat.firstName} {chat.lastName}
+                            </span>
+                          </div>
+                        </div>
                         {unreadCount > 0 && (
-                          <span className="unread-count bg-red-500 text-white rounded-full text-xs px-2 py-1">
-                            {unreadCount}
-                          </span>
+                          <div className="flex flex-col items-end">
+                            <span className="unread-count bg-blue-500 text-white rounded-full text-xs px-2 py-1">
+                              {unreadCount}
+                            </span>
+                          </div>
                         )}
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center text-gray-500">
-                    Không có cuộc trò chuyện nào gần đây.
+                  <div className="text-center text-gray-500 dark:text-gray-400 pt-10">
+                    No recent chats.
                   </div>
                 )}
               </div>
@@ -587,155 +630,134 @@ if (parsedMessage.receiver.userId === userId) {
                   className="messages-container flex flex-col h-full"
                 >
                   {/* Header */}
-                  <div className="messages-header bg-gradient-to-r from-blue-500 to-blue-700 text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
-                    {/* Tên người đang trò chuyện */}
-                    <span className="font-bold">{activeReceiverName}</span>
-
-                    {/* Nút điều khiển */}
+                  <div className="messages-header bg-gray-50 dark:bg-gray-800 px-4 py-3 rounded-t-lg flex items-center justify-between border-b dark:border-gray-700">
                     <div className="flex items-center">
-                      {/* Nút Minimize */}
                       <span
-                        className="minimize-btn text-2xl cursor-pointer hover:text-yellow-400 mr-4"
-                        onClick={() => {
-                          setMinimizedBars((prevBars) => {
-                            // Kiểm tra nếu thanh đã bị minimize hay chưa
-                            const existingBar = prevBars.find(
-                              (bar) => bar.id === activeReceiverId
-                            );
-                            if (!existingBar) {
-                              // Nếu thanh chưa bị minimize, thêm nó vào
-                              return [
-                                ...prevBars,
-                                {
-                                  id: activeReceiverId,
-                                  name: activeReceiverName,
-                                  isMinimized: true, // Đánh dấu thanh này là đã thu nhỏ
-                                },
-                              ];
-                            } else {
-                              // Nếu thanh đã có trong danh sách, thay đổi trạng thái minimize của nó
-                              return prevBars.map((bar) =>
-                                bar.id === activeReceiverId
-                                  ? { ...bar, isMinimized: !bar.isMinimized } // Đảo trạng thái minimize
-                                  : bar
-                              );
-                            }
-                          });
-
-                          setIsChatboxOpen(false); // Đóng chatbox khi minimize
-                          markMessagesAsRead(currentUserId, activeReceiverId);
-                          updateUnreadMessageCounts(currentUserId); // Cập nhật số lượng tin nhắn chưa đọc
-                        }}
-                      >
-                        &#8211; {/* Icon gạch ngang */}
-                      </span>
-                      {/* Nút Quay lại */}
-                      <span
-                        className="text-lg cursor-pointer hover:text-red-400"
+                        className="text-gray-500 hover:text-blue-500 cursor-pointer mr-3"
                         onClick={() => {
                           setActiveReceiverId(null); // Đặt lại activeReceiverId
                           fetchRecentChats(currentUserId); // Lấy lại danh sách cuộc trò chuyện gần đây
                         }}
                       >
-                        &larr;
+                        <FiArrowLeft size={22} />
                       </span>
-                      {unreadCount > 0 && (
-                        <span className="unread-count absolute top-0 right-0 bg-red-600 text-white text-xs rounded-full px-2 py-1 shadow-md">
-                          {unreadCount}
-                        </span>
-                      )}
+                      <span className="font-bold text-gray-800 dark:text-white">
+                        {activeReceiverName}
+                      </span>
+                    </div>
+
+                    {/* Nút điều khiển */}
+                    <div className="flex items-center space-x-2">
+                      <span
+                        className="minimize-btn text-gray-500 cursor-pointer hover:text-yellow-400"
+                        onClick={() => {
+                          setMinimizedBars((prevBars) => {
+                            const existingBar = prevBars.find(
+                              (bar) => bar.id === activeReceiverId
+                            );
+                            if (!existingBar) {
+                              return [
+                                ...prevBars,
+                                {
+                                  id: activeReceiverId,
+                                  name: activeReceiverName,
+                                },
+                              ];
+                            }
+                            return prevBars;
+                          });
+
+                          setIsChatboxOpen(false);
+                          markMessagesAsRead(currentUserId, activeReceiverId);
+                          updateUnreadMessageCounts(currentUserId);
+                        }}
+                      >
+                        <FiChevronDown size={24} />
+                      </span>
+                      <span
+                        className="text-gray-500 cursor-pointer hover:text-red-400"
+                        onClick={() => {
+                          setIsChatboxOpen(false);
+                        }}
+                      >
+                        <FiX size={24} />
+                      </span>
                     </div>
                   </div>
 
                   {/* Chat Messages */}
-                  <div className="messages-body flex-1 overflow-y-auto p-4 bg-gray-100">
+                  <div className="messages-body flex-1 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-900">
                     {messagesState
                       .sort(
-                        (a, b) => new Date(b.sentTime) - new Date(a.sentTime)
-                      ) // Sắp xếp tin nhắn theo thời gian, tin nhắn mới nhất lên đầu
+                        (a, b) =>
+                          sentTimeToDate(a.sentTime) -
+                          sentTimeToDate(b.sentTime)
+                      )
                       .map((msg, index) => {
                         return (
                           <div
                             key={index}
-                            className={`message-item p-3 rounded-lg max-w-[50%] ${
+                            className={`message-item flex my-2 ${
                               msg.isSentByCurrentUser
-                                ? "bg-blue-400 text-black ml-auto" // Tin nhắn do người dùng gửi
-                                : "bg-gray-300 text-black mr-auto" // Tin nhắn nhận được
+                                ? "justify-end"
+                                : "justify-start"
                             }`}
-                            style={{
-                              wordWrap: "break-word",
-                              whiteSpace: "pre-wrap",
-                              marginBottom: "10px",
-                            }}
-                            onClick={() => toggleTimestamp(index)} // Thêm sự kiện click
+                            onClick={() => toggleTimestamp(index)}
                           >
-                            <div>{msg.message || msg.content}</div>
+                            <div
+                              className={`p-3 rounded-lg max-w-[70%] ${
+                                msg.isSentByCurrentUser
+                                  ? "bg-blue-500 text-white"
+                                  : "bg-gray-200 dark:bg-gray-700 text-black dark:text-white"
+                              }`}
+                              style={{
+                                wordWrap: "break-word",
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              <div>{msg.message || msg.content}</div>
 
-                            {/* Hiển thị thời gian nếu đang được bật */}
-                            {visibleTimestamps.includes(index) && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {Array.isArray(msg.sentTime) &&
-                                msg.sentTime.length === 7
-                                  ? (() => {
-                                      const [
-                                        year,
-                                        month,
-                                        day,
-                                        hour,
-                                        minute,
-                                        second,
-                                      ] = msg.sentTime;
-                                      const date = new Date(
-                                        Date.UTC(
-                                          year,
-                                          month - 1,
-                                          day,
-                                          hour,
-                                          minute,
-                                          second
-                                        )
-                                      );
-                                      return date
-                                        .toISOString()
-                                        .replace("T", " ")
-                                        .split(".")[0];
-                                    })()
-                                  : new Date(msg.sentTime)
-                                      .toISOString()
-                                      .replace("T", " ")
-                                      .split(".")[0]}
-                              </div>
-                            )}
-
-                            {/* Hiển thị trạng thái tin nhắn (Đã gửi / Đã đọc) chỉ cho tin nhắn do người dùng gửi, và chỉ hiển thị cho tin nhắn gần nhất */}
-                            {msg.isSentByCurrentUser && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {msg === messagesState[messagesState.length - 1] // Kiểm tra xem có phải tin nhắn gần nhất của bạn không
-                                  ? msg.read
-                                    ? "Đã đọc"
-                                    : ""
-                                  : ""}
-                              </div>
-                            )}
+                              {visibleTimestamps.includes(index) && (
+                                <div
+                                  className={`text-xs mt-1 ${
+                                    msg.isSentByCurrentUser
+                                      ? "text-blue-200"
+                                      : "text-gray-500"
+                                  }`}
+                                >
+                                  {sentTimeToDate(msg.sentTime)
+                                    .toISOString()
+                                    .replace("T", " ")
+                                    .split(".")[0]}
+                                </div>
+                              )}
+                            </div>
+                            {msg.isSentByCurrentUser &&
+                              index === messagesState.length - 1 && (
+                                <div className="text-xs text-gray-500 mt-1 self-end ml-2">
+                                  {msg.read ? "Read" : "Sent"}
+                                </div>
+                              )}
                           </div>
                         );
                       })}
+                    <div ref={messagesEndRef} />
                   </div>
 
                   {/* Chat Input */}
-                  <div className="chat-input bg-white p-4 flex items-center border-t border-gray-200 shadow-inner">
+                  <div className="chat-input bg-white dark:bg-gray-800 p-3 flex items-center border-t dark:border-gray-700">
                     <input
                       ref={chatInputRef}
                       type="text"
-                      placeholder="Nhập tin nhắn..."
-                      className="flex-1 p-3 rounded-md bg-gray-100 text-black focus:outline-none focus:ring focus:ring-blue-300"
+                      placeholder="Type a message..."
+                      className="flex-1 p-3 rounded-full bg-gray-100 dark:bg-gray-700 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       onKeyDown={handleEnter}
                     />
                     <button
                       onClick={sendMessage}
-                      className="ml-2 bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 shadow-md"
+                      className="ml-3 bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      Send
+                      <FiSend size={20} />
                     </button>
                   </div>
                 </div>

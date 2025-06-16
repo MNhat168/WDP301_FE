@@ -1,10 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import HeaderEmployer from "../../layout/headeremp";
 import useBanCheck from "../admin/checkban";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import { GeoSearchControl, OpenStreetMapProvider } from "leaflet-geosearch";
-import "leaflet-geosearch/dist/geosearch.css";
-import "leaflet/dist/leaflet.css";
 
 const CompanyDetail = () => {
   const [companyData, setCompanyData] = useState(null);
@@ -15,50 +11,89 @@ const CompanyDetail = () => {
     address: "",
     image: null,
   });
-  const [location, setLocation] = useState(""); // For address string
-  const [position, setPosition] = useState([0, 0]); // For lat/lon position
   const BanPopup = useBanCheck();
+
+  const isNewCompany = !companyData || !companyData.com || Object.keys(companyData.com).length === 0 || !companyData.com._id;
 
   useEffect(() => {
     fetchCompanyData();
   }, []);
 
   const fetchCompanyData = () => {
-    fetch("http://localhost:8080/create-or-update-company-profile", {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user || !user.accessToken) {
+      console.error("User not logged in or access token is missing.");
+      // If user is not logged in, we can assume no company profile.
+      setCompanyData({ com: {} });
+      return;
+    }
+
+    fetch("http://localhost:5000/api/companies/my-profile", {
       method: "GET",
-      credentials: "include",
+      headers: {
+        'Authorization': `Bearer ${user.accessToken}`
+      },
     })
-      .then((response) => response.json())
+      .then((response) => {
+        if (response.status === 404) {
+          return null; // Indicates company not found, which is a valid state for this page
+        }
+        if (!response.ok) {
+          throw new Error(`Server responded with status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then((data) => {
-        setCompanyData({ com: data });
-        setEditFormData({
-          companyName: data.companyName || "",
-          aboutUs: data.aboutUs || "",
-          address: data.address || "",
-          image: null,
-        });
-        if (data.latitude && data.longitude) {
-          setPosition([data.latitude, data.longitude]);
+        if (data === null) {
+          // Company not found, set state to show create form
+          setCompanyData({ com: {} });
+        } else {
+          // Company found, populate data - Map to expected structure
+          const company = data.result || data; // Handle both nested and direct response
+          setCompanyData({ com: company });
+          setEditFormData({
+            companyName: company.companyName || "",
+            aboutUs: company.aboutUs || "",
+            address: company.address || "",
+            image: null,
+          });
         }
       })
-      .catch((error) => console.error("Error fetching company profile:", error));
+      .catch((error) => {
+        console.error("Error fetching company profile:", error);
+        // In case of any error, we'll assume no company profile exists 
+        // and show the create view to prevent the user being stuck on the loader.
+        setCompanyData({ com: {} });
+      });
   };
 
-  const handleEditSubmit = async (event) => {
+  const handleEditSubmit = useCallback(async (event) => {
     event.preventDefault();
 
-    const formData = new FormData();
-    formData.append("name", editFormData.companyName);
-    formData.append("aboutus", editFormData.aboutUs);
-    formData.append("address", editFormData.address);
-    console.log(editFormData.address);
-    if (editFormData.image) formData.append("image", editFormData.image);
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user || !user.accessToken) {
+      console.error("User not logged in or access token is missing.");
+      return;
+    }
+
+    const endpoint = isNewCompany 
+      ? "http://localhost:5000/api/companies/" 
+      : `http://localhost:5000/api/companies/${companyData.com.companyId}`;
+      
+    const method = isNewCompany ? "POST" : "PUT";
 
     try {
-      const response = await fetch("http://localhost:8080/save-company-profile", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: editFormData.companyName,
+          aboutUs: editFormData.aboutUs,
+          address: editFormData.address,
+        }),
       });
 
       if (!response.ok) {
@@ -68,59 +103,49 @@ const CompanyDetail = () => {
       }
 
       const data = await response.json();
-      setCompanyData({ com: data });
+      setCompanyData({ com: data.result });
       setIsEditModalOpen(false);
-      fetchCompanyData();
+      fetchCompanyData(); // Re-fetch data to show the latest profile
       
     } catch (error) {
       console.error("Error saving company profile:", error);
     }
-  };
+  }, [editFormData, companyData, isNewCompany]);
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = useCallback((field, value) => {
     setEditFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
+  }, []);
 
-  const SearchBar = () => {
-    const map = useMap();
-
-    useEffect(() => {
-      const provider = new OpenStreetMapProvider();
-      const searchControl = new GeoSearchControl({
-        provider,
-        style: "bar",
-        autoClose: true,
-        showMarker: true,
-        keepResult: true,
+  const openModalFor = useCallback((company = null) => {
+    if (company) {
+      // Editing an existing company
+      setEditFormData({
+        companyName: company.companyName || "",
+        aboutUs: company.aboutUs || "",
+        address: company.address || "",
+        image: null,
       });
-
-      map.addControl(searchControl);
-
-      map.on("geosearch/showlocation", (e) => {
-        const { x, y, label } = e.location;
-        setPosition([y, x]); // Update latitude and longitude
-        setLocation(label); // Update the address
-        handleInputChange("address", label); // Save the actual address in editFormData
+    } else {
+      // Creating a new company
+      setEditFormData({
+        companyName: "",
+        aboutUs: "",
+        address: "",
+        image: null,
       });
+    }
+    setIsEditModalOpen(true);
+  }, []);
 
-      return () => {
-        map.removeControl(searchControl);
-      };
-    }, [map]);
+  const closeModal = useCallback(() => {
+    setIsEditModalOpen(false);
+  }, []);
 
-    return null;
-  };
-
-  if (!companyData) {
-    return <div>Loading...</div>;
-  }
-
-  const isNewCompany = !companyData.com;
-
-  const EditModal = () => {
+  // Memoized EditModal to prevent re-creation on every render
+  const EditModal = useMemo(() => {
     if (!isEditModalOpen) return null;
 
     return (
@@ -128,10 +153,10 @@ const CompanyDetail = () => {
         <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-6 border-b">
             <h3 className="text-xl font-semibold text-gray-900">
-              Edit Company Profile
+              {isNewCompany ? "Create Company Profile" : "Edit Company Profile"}
             </h3>
             <button
-              onClick={() => setIsEditModalOpen(false)}
+              onClick={closeModal}
               className="text-gray-400 hover:text-gray-500"
             >
               <svg
@@ -159,10 +184,10 @@ const CompanyDetail = () => {
                 <input
                   type="text"
                   value={editFormData.companyName}
-                  onChange={(e) =>
-                    handleInputChange("companyName", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("companyName", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Enter your company name"
+                  required
                 />
               </div>
 
@@ -173,30 +198,27 @@ const CompanyDetail = () => {
                 <textarea
                   rows="4"
                   value={editFormData.aboutUs}
-                  onChange={(e) =>
-                    handleInputChange("aboutUs", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("aboutUs", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Describe your company, what you do, your mission..."
+                  required
                 ></textarea>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
+                  Company Address
                 </label>
-                <MapContainer
-                  center={position}
-                  zoom={12}
-                  style={{ width: "100%", height: "400px" }}
-                >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <Marker position={position}>
-                    <Popup>{location || "Current Location"}</Popup>
-                  </Marker>
-                  <SearchBar />
-                </MapContainer>
-                <p className="text-sm text-gray-500 mt-2">
-                  Selected Address: {editFormData.address}
+                <input
+                  type="text"
+                  value={editFormData.address}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
+                  placeholder="Enter your company's full address"
+                  required
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  📍 Example: 123 Nguyen Hue Street, District 1, Ho Chi Minh City
                 </p>
               </div>
 
@@ -207,34 +229,57 @@ const CompanyDetail = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) =>
-                    handleInputChange("image", e.target.files[0])
-                  }
+                  onChange={(e) => handleInputChange("image", e.target.files[0])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Upload your company logo or image (JPG, PNG, GIF)
+                </p>
               </div>
             </div>
 
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                onClick={closeModal}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-200"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600"
+                className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition duration-200"
               >
-                Save Changes
+                {isNewCompany ? "Create Company" : "Save Changes"}
               </button>
             </div>
           </form>
         </div>
       </div>
     );
-  };
+  }, [isEditModalOpen, isNewCompany, editFormData, handleEditSubmit, handleInputChange, closeModal]);
+
+  if (!companyData) {
+    return (
+      <>
+        {BanPopup}
+        <div className="min-h-screen bg-gray-50">
+          <HeaderEmployer />
+          <div className="flex items-center justify-center" style={{ height: 'calc(100vh - 80px)' }}>
+            <div className="text-center">
+              <div className="inline-flex items-center px-8 py-4 bg-white rounded-2xl shadow-lg">
+                <svg className="animate-spin h-8 w-8 text-orange-500 mr-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-xl font-semibold text-gray-700">Loading Company Profile...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -243,134 +288,189 @@ const CompanyDetail = () => {
         <HeaderEmployer />
 
         {isNewCompany ? (
-          <div className="max-w-4xl mx-auto px-4 py-8">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-800">Create Company</h1>
-            </div>
-
-            <form
-              className="bg-white rounded-lg shadow-md p-6"
-              action="/save-company-profile"
-              method="post"
-              encType="multipart/form-data"
-            >
-              <h5 className="text-xl font-semibold text-gray-700 mb-6">Your company profile here!</h5>
-
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Company Name
-                </label>
-                <input
-                  name="name"
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter company name"
-                />
+          <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="mx-auto w-32 h-32 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
               </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Your Company Description
-                </label>
-                <textarea
-                  name="aboutus"
-                  rows="5"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Describe your company"
-                ></textarea>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Company address"
-                />
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-gray-700 text-sm font-bold mb-2">
-                  Upload Company Image
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  name="image"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
+              <h1 className="text-3xl font-bold text-gray-800 mb-3">Welcome, Employer!</h1>
+              <p className="text-gray-600 mb-8">
+                It looks like you haven't set up your company profile yet. <br />
+                Create one now to start posting jobs and attracting talent.
+              </p>
               <button
-                type="submit"
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-md transition duration-200"
+                onClick={() => openModalFor()}
+                className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-red-600 transform hover:scale-105 transition-all duration-300 shadow-lg"
               >
-                Create Company
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                <span>Create Company Profile</span>
               </button>
-            </form>
+            </div>
           </div>
         ) : (
-          <div className="relative">
-            <div
-              className="h-[500px] bg-cover bg-center relative"
+          <div className="relative pb-24 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen">
+            {/* Banner Image */}
+            <div className="h-64 md:h-80 bg-cover bg-center shadow-inner relative"
               style={{
-                backgroundImage: "url(/assets/images/heading-6-1920x500.jpg)",
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                backgroundBlend: 'overlay'
+                backgroundImage: `url(${'/assets/images/heading-6-1920x500.jpg'})`,
               }}
             >
-              <div className="max-w-6xl mx-auto px-4 py-12">
-                <div className="flex flex-col md:flex-row gap-8">
-                  <div className="md:w-1/3">
-                    <img
-                      src={`http://localhost:8080${companyData.com.url || "/assets/images/default-image.jpg"}`}
-                      className="w-full h-80 object-contain bg-white rounded-lg shadow-lg"
-                      alt="Company"
-                    />
-                  </div>
+              <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+            </div>
 
-                  <div className="md:w-2/3 text-white">
-                    <div className="flex items-center gap-2 mb-4">
-                      <i className="fas fa-map-marker-alt text-orange-500 text-3xl"></i>
-                      <p className="text-xl">{companyData.com.address}</p>
+            {/* Main content */}
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              {/* Floating Info Card */}
+              <div className="-mt-20 sm:-mt-24 md:-mt-32">
+                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-6 md:p-8 border border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+                    {/* Company Logo */}
+                    <div className="flex-shrink-0 relative">
+                      <img
+                        className="h-32 w-32 md:h-40 md:w-40 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-xl"
+                        src={`http://localhost:5000${companyData.com.url || "/assets/images/default-image.jpg"}`}
+                        alt="Company Logo"
+                      />
+                      <div className="absolute -bottom-2 -right-2 bg-green-500 rounded-full p-2 shadow-lg">
+                        <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
                     </div>
 
-                    <div className="mb-4">
-                      {companyData.com.status === "Active" ? (
-                        <span className="px-3 py-1 bg-green-500 text-white rounded-full text-sm">
-                          {companyData.com.status}
+                    {/* Company Info */}
+                    <div className="flex-1 text-center md:text-left mt-4 md:mt-0">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div>
+                          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight mb-2">
+                            {companyData.com.companyName}
+                          </h1>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                            Company ID: #{companyData.com._id?.slice(-8) || 'N/A'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => openModalFor(companyData.com)}
+                          className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl shadow-sm text-white bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-200 transform hover:scale-105"
+                        >
+                          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                          Edit Profile
+                        </button>
+                      </div>
+
+                      <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Status */}
+                        <div className="flex items-center justify-center md:justify-start">
+                          {companyData.com.status?.toLowerCase() === "active" ? (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <svg className="-ml-0.5 mr-1.5 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8">
+                                <circle cx="4" cy="4" r="3" />
+                              </svg>
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              <svg className="-ml-0.5 mr-1.5 h-2 w-2 text-red-400" fill="currentColor" viewBox="0 0 8 8">
+                                <circle cx="4" cy="4" r="3" />
+                              </svg>
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Location */}
+                        <div className="flex items-center justify-center md:justify-start text-gray-600 dark:text-gray-300">
+                          <svg className="h-5 w-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-sm font-medium">{companyData.com.address}</span>
+                        </div>
+
+                        {/* Join Date */}
+                        <div className="flex items-center justify-center md:justify-start text-gray-600 dark:text-gray-300">
+                          <svg className="h-5 w-5 mr-2 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-sm font-medium">
+                            Founded {new Date(companyData.com.createdAt).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats & About Section */}
+              <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Company Stats */}
+                <div className="lg:col-span-1">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Company Stats</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Status</span>
+                        <span className={`font-medium ${companyData.com.status?.toLowerCase() === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                          {companyData.com.status?.charAt(0).toUpperCase() + companyData.com.status?.slice(1) || 'Unknown'}
                         </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Company ID</span>
+                        <span className="font-mono text-sm text-gray-900 dark:text-white">
+                          #{companyData.com._id?.slice(-8) || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Member Since</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {new Date(companyData.com.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Last Updated</span>
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {new Date(companyData.com.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* About Us */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center mb-6">
+                      <div className="h-8 w-1 bg-gradient-to-b from-orange-500 to-red-500 rounded-full mr-4"></div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">About {companyData.com.companyName}</h2>
+                    </div>
+                    <div className="text-gray-700 dark:text-gray-300 text-base leading-relaxed space-y-4">
+                      {companyData.com.aboutUs ? (
+                        companyData.com.aboutUs.split('\n').map((paragraph, index) => (
+                          <p key={index} className="leading-7">{paragraph}</p>
+                        ))
                       ) : (
-                        <span className="px-3 py-1 bg-red-500 text-white rounded-full text-sm">
-                          {companyData.com.status}
-                        </span>
+                        <p className="text-gray-500 dark:text-gray-400 italic">
+                          No company description available. Click "Edit Profile" to add one.
+                        </p>
                       )}
                     </div>
-
-                    <h2 className="text-3xl font-bold text-orange-500 mb-4">
-                      {companyData.com.companyName}
-                    </h2>
-
-                    <p className="text-gray-200 text-lg mb-6">
-                      {companyData.com.aboutUs}
-                    </p>
-
-                    <button
-                      onClick={() => setIsEditModalOpen(true)}
-                      className="inline-block px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-md transition duration-200"
-                    >
-                      Edit Company Profile
-                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-        <EditModal />
+        {EditModal}
       </div>
     </>
   );
