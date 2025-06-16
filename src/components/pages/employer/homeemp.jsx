@@ -69,44 +69,44 @@ const HomeEmp = () => {
   }, []);
 
   // Fetch dashboard data
-  useEffect(() => {
-    if (user) {
-      const fetchDashboardData = async () => {
-        try {
-          // You may need to adjust the endpoint based on your backend API
-          const response = await axios.get(
-            `http://localhost:5000/api/dashboard/${user._id || user.userId}`,
-            { 
-              withCredentials: true,
-              headers: {
-                'Authorization': `Bearer ${user.accessToken}`
-              }
-            }
-          );
-          setCompany(response.data.company);
-          setApplicationsByMonth(response.data.applicationsByMonth || []);
-          setJobCounts({
-            accept: response.data.accept || 0,
-            reject: response.data.reject || 0,
-            pending: response.data.pending || 0,
-            cvApplied: response.data.cvApplied || 0,
-          });
-        } catch (err) {
-          console.error("Error fetching dashboard data:", err);
-          // Set default values if API fails
-          setApplicationsByMonth([0,0,0,0,0,0,0,0,0,0,0,0]);
-          setJobCounts({
-            accept: 0,
-            reject: 0,
-            pending: 0,
-            cvApplied: 0,
-          });
-        }
-      };
+  // useEffect(() => {
+  //   if (user) {
+  //     const fetchDashboardData = async () => {
+  //       try {
+  //         // You may need to adjust the endpoint based on your backend API
+  //         const response = await axios.get(
+  //           `http://localhost:5000/api/dashboard/${user._id || user.userId}`,
+  //           { 
+  //             withCredentials: true,
+  //             headers: {
+  //               'Authorization': `Bearer ${user.accessToken}`
+  //             }
+  //           }
+  //         );
+  //         setCompany(response.data.company);
+  //         setApplicationsByMonth(response.data.applicationsByMonth || []);
+  //         setJobCounts({
+  //           accept: response.data.accept || 0,
+  //           reject: response.data.reject || 0,
+  //           pending: response.data.pending || 0,
+  //           cvApplied: response.data.cvApplied || 0,
+  //         });
+  //       } catch (err) {
+  //         console.error("Error fetching dashboard data:", err);
+  //         // Set default values if API fails
+  //         setApplicationsByMonth([0,0,0,0,0,0,0,0,0,0,0,0]);
+  //         setJobCounts({
+  //           accept: 0,
+  //           reject: 0,
+  //           pending: 0,
+  //           cvApplied: 0,
+  //         });
+  //       }
+  //     };
 
-      fetchDashboardData();
-    }
-  }, [user]);
+  //     fetchDashboardData();
+  //   }
+  // }, [user]);
 
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex items-center justify-center">

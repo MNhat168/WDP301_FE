@@ -70,7 +70,7 @@ const EditProfileCompany = () => {
       .then((response) => response.json())
       .then((data) => {
         console.log('Company profile updated:', data);
-        window.location.href = "/create-or-update-company-profile";
+        window.location.href = "/company";
       })
       .catch((error) => {
         console.error('Error saving company profile:', error);

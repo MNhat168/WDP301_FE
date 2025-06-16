@@ -102,7 +102,7 @@ const Header = () => {
     <header className="bg-gray-900 text-white shadow-md">
       <nav className="container mx-auto px-6 flex items-center justify-between">
                 {/* Code hiện tại */}
-                <ChatBox />
+                
             </nav>
       <nav className="container mx-auto px-6 py-4 flex items-center justify-between">
         <Link
