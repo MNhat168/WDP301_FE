@@ -45,17 +45,13 @@ import Application from "./components/pages/jobseeker/application";
 import JobList from "./components/pages/admin/jobmanagement";
 import DoTest from "./components/pages/employer/dotest";
 import SkillTestMark from "./components/pages/employer/skilltestmark";
+import Subscription from "./components/pages/jobseeker/subscription";
 import ChatBox from "./components/layout/chatbox";
-
 
 const App = () => {
   return (
-    <Router>
-      <div>
-        <header>
-          <nav className="navbar navbar-expand-lg">
-          </nav>
-        </header>
+    <div className="min-h-screen w-full bg-gray-50">
+      <Router>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/home" element={<HomePage />} />
@@ -72,6 +68,7 @@ const App = () => {
           <Route path="/changepass" element={<ChangePassword />} />
           <Route path="/jobsearch" element={<JobSearch />} />
           <Route path="/packages" element={<PackageList />} />
+          <Route path="/subscription" element={<Subscription />} />
           <Route path="/upgrade-payment/:packageId" element={<PackagePayment />} />
           <Route path="/payment-callback" element={<PaymentCallback />} />
           <Route path="/admin/packages" element={<PackageManagement />} />
@@ -96,7 +93,7 @@ const App = () => {
           <Route path="/listApplyCv" element={<ApproveCv />} />
           <Route path="/companies" element={<Company />} />
           <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs-detail" element={<JobDetail />} />
+          <Route path="/jobs-detail/:id" element={<JobDetail />} />
           <Route path="/favorite-jobs" element={<FavoriteJob />} />
           <Route path="/application" element={<Application />} />
           <Route path="/admin/jobs" element={<JobList />} />
@@ -104,10 +101,9 @@ const App = () => {
           <Route path="/skill-test-result" element={<SkillTestMark />} />
         </Routes>
         <ChatBox />
-      </div>
-    </Router>
+      </Router>
+    </div>
   );
 };
-
 
 export default App;

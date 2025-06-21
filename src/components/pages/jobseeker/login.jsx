@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { UserContext } from "../../../Context";
 import mainImage from '../../../assets/3dimage.png';
 import logoGoogle from '../../../assets/google.svg';
 
@@ -11,8 +12,10 @@ const Login = () => {
   const navigate = useNavigate();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { login } = useContext(UserContext);
 
   const handleLogin = async () => {
+    setIsLoading(true);
     try {
       const credentials = { email, password };
       const response = await axios.post("http://localhost:5000/api/user/login", credentials, {
@@ -28,7 +31,8 @@ const Login = () => {
         return;
       }
   
-      localStorage.setItem("user", JSON.stringify(user));
+      login(user);
+      
       if (user.userData.roleId && user.userData.roleId.roleName === 'ROLE_JOBSEEKER') {
         navigate("/home");
       } else {
@@ -39,6 +43,8 @@ const Login = () => {
       setError(error.response?.status === 403 
         ? "Your account has been banned. Please contact support for assistance."
         : "Invalid email or password.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -51,7 +57,7 @@ const Login = () => {
         className="flex justify-center items-center w-full h-screen bg-gradient-to-r from-yellow-400 via-orange-500 to-brown-700"
     >
         {/* Main Container */}
-        <div className="flex w-[1000px] h-[700px] bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="flex w-[1200px] h-[800px] bg-white rounded-lg shadow-lg overflow-hidden">
             {/* Left Section */}
             <div className="w-2/5 bg-gradient-to-b from-yellow-400 via-orange-500 to-brown-700 p-8 flex flex-col justify-center items-center relative">
                 {/* Logo */}
@@ -93,7 +99,7 @@ const Login = () => {
                         <div className="relative">
                             <input
                                 type="email"
-                                className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="p-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder=" "
@@ -105,7 +111,7 @@ const Login = () => {
                         <div className="relative">
                             <input
                                 type="password"
-                                className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="p-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder=" "
