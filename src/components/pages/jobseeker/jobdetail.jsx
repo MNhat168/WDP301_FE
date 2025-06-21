@@ -1,440 +1,587 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from "../../layout/header";
+import toastr from 'toastr';
+import 'toastr/build/toastr.min.css';
 
-import DoTest from '../employer/dotest';
+import {
+    FiMapPin, FiBriefcase, FiCalendar, FiClock, FiDollarSign,
+    FiShare2, FiHeart, FiCheckCircle, FiXCircle, FiAlertCircle, 
+    FiAward, FiFileText, FiArrowLeft, FiUsers, FiEye, FiStar,
+    FiTrendingUp, FiGlobe, FiMail, FiPhone, FiBookmark,
+    FiTarget, FiShield, FiZap
+} from 'react-icons/fi';
+
+// Enhanced Skeleton Loader Component
+const JobDetailSkeleton = () => (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <Header />
+        <div className="container mx-auto px-4 py-8 animate-pulse">
+            {/* Hero Section Skeleton */}
+            <div className="bg-white rounded-3xl shadow-xl p-8 mb-8">
+                <div className="h-4 bg-gray-200 rounded w-24 mb-6"></div>
+                <div className="h-10 bg-gray-300 rounded w-3/4 mb-4"></div>
+                <div className="flex flex-wrap gap-4 mb-6">
+                    <div className="h-6 bg-gray-200 rounded w-32"></div>
+                    <div className="h-6 bg-gray-200 rounded w-40"></div>
+                    <div className="h-6 bg-gray-200 rounded w-36"></div>
+                </div>
+                <div className="flex gap-4">
+                    <div className="h-12 bg-blue-200 rounded-xl flex-1"></div>
+                    <div className="h-12 bg-gray-200 rounded-xl w-12"></div>
+                    <div className="h-12 bg-gray-200 rounded-xl w-12"></div>
+                </div>
+            </div>
+            
+            <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white rounded-2xl p-8 shadow-lg">
+                        <div className="h-6 bg-gray-200 rounded w-1/3 mb-6"></div>
+                        <div className="space-y-3">
+                            <div className="h-4 bg-gray-200 rounded"></div>
+                            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        </div>
+                    </div>
+                </div>
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white rounded-2xl p-6 shadow-lg">
+                        <div className="h-5 bg-gray-200 rounded w-1/2 mb-4"></div>
+                        <div className="space-y-4">
+                            <div className="h-4 bg-gray-200 rounded"></div>
+                            <div className="h-4 bg-gray-200 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 const JobDetail = () => {
+    const { id: jobId } = useParams();
+    const navigate = useNavigate();
     const [job, setJob] = useState(null);
-    const [user, setUser] = useState(null);
-    const [applicationId, setApplicationId] = useState(null);
-    const [testCompleted, setTestCompleted] = useState(false);
-    const [questionExist, setQuestionExist] = useState(false);
-    const [cvProfile, setCvProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [modalData, setModalData] = useState(null);
-    const navigate = useNavigate(); // Khai báo hook useNavigate
+    const [error, setError] = useState(null);
+    const [isSaved, setIsSaved] = useState(false);
+
+    // User-specific application state
+    const [applicationStatus, setApplicationStatus] = useState({
+        hasApplied: false,
+        applicationId: null,
+        testCompleted: false,
+        questionExist: false,
+    });
+    const [isActionLoading, setIsActionLoading] = useState(false);
+
+    // This would typically come from an auth context
+    const userIsLoggedIn = !!localStorage.getItem('user');
+
     useEffect(() => {
         const fetchJobDetails = async () => {
+            if (!jobId) {
+                setError("Job ID is missing.");
+                setLoading(false);
+                return;
+            }
+            setLoading(true);
             try {
-                const jobId = new URLSearchParams(window.location.search).get("jobId");
-                const response = await axios.get("http://localhost:8080/jobs-detail", {
-                    params: { jobId },
-                    withCredentials: true,
-                });
-                const data = response.data;
-                console.log(data);
-                setJob(data.job);
-                setUser(data.user);
-                setApplicationId(data.applicationId);
-                setCvProfile(data.cvProfile);
-                setTestCompleted(data.testCompleted);
-                setQuestionExist(data.questionExist);
-            } catch (error) {
-                console.error("Error fetching job details:", error);
+                const response = await fetch(`http://localhost:5000/api/jobs/${jobId}`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.status && data.result) {
+                    setJob(data.result);
+                    setError(null);
+                } else {
+                    throw new Error(data.message || "Failed to parse job details");
+                }
+            } catch (err) {
+                setError(err.message);
+                console.error("Error fetching job details:", err);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchJobDetails();
-    }, []);
+    }, [jobId]);
 
-    const openModal = () => {
-        setModalData(user);  // Display user data in the modal
-    };
+    useEffect(() => {
+        const fetchApplicationStatus = async () => {
+            if (!jobId || !userIsLoggedIn) return;
+            try {
+                const response = await fetch(`http://localhost:5000/api/applications/status/${jobId}`, {
+                    headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}` }
+                });
 
-    const closeModal = () => {
-        setModalData(null); // Close the modal
-    };
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status && data.result) {
+                        setApplicationStatus({ hasApplied: true, ...data.result });
+                    }
+                } else if (response.status === 404) {
+                    setApplicationStatus({ hasApplied: false, applicationId: null, testCompleted: false, questionExist: false });
+                }
+            } catch (err) {
+                console.error("Could not fetch application status:", err);
+            }
+        };
 
-    const handleApplyJob = () => {
-        const userId = document.getElementById("userId").value;
-        if (userId === 'false') {
-            alert("Bạn cần phải đăng nhập");
+        fetchApplicationStatus();
+    }, [jobId, userIsLoggedIn]);
+
+    const handleApplyJob = async () => {
+        if (!userIsLoggedIn) {
+            toastr.warning('Please log in to apply for jobs.');
+            navigate('/login');
             return;
         }
-        openModal();  // Open the modal when the user clicks "Apply to Job"
-    };
-
-    const applyJob = async () => {
-        const jobId = job.jobId;
+        setIsActionLoading(true);
         try {
-            const response = await axios.post('http://localhost:8080/application/create', null, {
-                params: { jobId },
-                withCredentials: true,
+            const response = await fetch(`http://localhost:5000/api/applications`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}`
+                },
+                body: JSON.stringify({ jobId: job._id })
             });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Failed to apply.');
+            
+            toastr.success('Application submitted successfully!');
+            setApplicationStatus({ hasApplied: true, ...data.result });
 
-            alert("Apply thành công!");
-            setApplicationId(response.data.applicationId);
-            setTestCompleted(false);
-            closeModal();
-
-            // Reload the page to refresh the state
-            window.location.reload();
-        } catch (error) {
-            console.error('Error applying to job:', error);
-            if (error.response && error.response.status === 409) {
-                alert("Bạn đã apply công việc này rồi!");
-            } else if (error.response && error.response.status === 401) {
-alert("Bạn cần phải đăng nhập!");
-            }
+        } catch (err) {
+            toastr.error(err.message || 'An error occurred while applying.');
+            console.error('Error applying to job:', err);
+        } finally {
+            setIsActionLoading(false);
         }
     };
 
     const handleWithdrawApplication = async () => {
+        if (!applicationStatus.applicationId) {
+            toastr.error('No application to withdraw.');
+            return;
+        }
+        setIsActionLoading(true);
         try {
-            if (!applicationId) {
-                alert("Không có đơn ứng tuyển để rút lại.");
-                return;
-            }
-
-            const response = await axios.delete('http://localhost:8080/application/delete', {
-                params: { applicationId },
-                withCredentials: true,
+            const response = await fetch(`http://localhost:5000/api/applications/${applicationStatus.applicationId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}` }
             });
-
-            alert("Rút đơn ứng tuyển thành công.");
-            setApplicationId(null); // Reset trạng thái applicationId về null sau khi rút thành công
-        } catch (error) {
-            console.error('Error withdrawing application:', error);
-            if (error.response && error.response.status === 404) {
-                alert("Đơn ứng tuyển không tồn tại hoặc đã bị xóa.");
-            } else if (error.response && error.response.status === 401) {
-                alert("Bạn cần phải đăng nhập!");
-            } else {
-                alert("Có lỗi xảy ra khi rút đơn ứng tuyển.");
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Failed to withdraw application.');
             }
+            toastr.info('Application withdrawn.');
+            setApplicationStatus({ hasApplied: false, applicationId: null, testCompleted: false, questionExist: false });
+        } catch (err) {
+            toastr.error(err.message || 'An error occurred while withdrawing.');
+            console.error('Error withdrawing application:', err);
+        } finally {
+            setIsActionLoading(false);
         }
     };
 
     const handleFavoriteJob = () => {
-        // const jobId = job.jobId;
-        const userId = document.getElementById("userId").value;
-        if (userId === 'false') {
-            alert("Bạn cần phải đăng nhập");
+        if (!userIsLoggedIn) {
+            toastr.warning('Please log in to save jobs.');
             return;
         }
-        const favoriteJobs = JSON.parse(localStorage.getItem("favoriteJobs"));
-        const request = {
-            "jobId": job.jobId,
-            "location": job?.location,
-            "description": job?.description,
-            "companyName": job.company.companyName,
-            "salary": job.salary,
-            "experienceYears": job.experienceYears,
-            "address": job.company.address,
-            "title": job.title,
-            "status": job.status,
-        }
-        if (!favoriteJobs) {
-            localStorage.setItem("favoriteJobs", JSON.stringify([request]));
-            alert("Lưu công việc thành công");
-        } else {
-            const jobIds = favoriteJobs.map((item) => item.jobId)
-            if (jobIds.includes(job.jobId)) {
-                alert("Công việc đã có trong danh sách yêu thích");
-            } else {
-                localStorage.setItem("favoriteJobs", JSON.stringify([request, ...favoriteJobs]));
-            }
-        }
-
+        setIsSaved(!isSaved);
+        toastr.success(isSaved ? 'Job removed from favorites!' : 'Job saved to favorites!');
     };
-      
-  // Định nghĩa hàm xử lý khi nhấn nút
-  const handleSkillTestClick = () => {
-    if (job && job.jobId) {
-      navigate("/doskilltest", { state: { jobId: job.jobId } }); // Chuyển hướng đến trang /doskilltest với jobId
-    }
-  };
 
-        // axios.get(http://localhost:8080/favorite-jobs/save?id=${jobId}, { withCredentials: true })
-        //     .then(response => {
-        //         if (response.data) {
-        //             alert("Lưu công việc thành công");
-        //         } else {
-        //             alert("Công việc đã có trong danh sách yêu thích");
-        //         }
-        //     })
-        //     .catch(error => {
-        //         console.error('Error saving favorite job:', error);
-        //         alert("Có lỗi xảy ra khi lưu công việc yêu thích.");
-        //     });
+    const handleShareJob = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: job.title,
+                text: `Check out this job: ${job.title} at ${job.companyId?.companyName}`,
+                url: window.location.href,
+            });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            toastr.success('Job link copied to clipboard!');
+        }
+    };
 
+    const handleSkillTestClick = () => {
+        navigate("/doskilltest", { state: { jobId: job._id } });
+    };
 
-    if (loading) {
-        return <div className="text-center text-lg">Loading...</div>;
-    }
+    if (loading) return <JobDetailSkeleton />;
 
-    if (!job) {
-        return <div className="text-center text-lg">Job not found</div>;
-    }
+    if (error) return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
+            <Header />
+            <div className="text-center py-20">
+                <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-md mx-auto">
+                    <FiAlertCircle className="mx-auto text-red-500 text-6xl mb-6" />
+                    <h2 className="text-3xl font-bold text-gray-800 mb-4">Oops! Something went wrong</h2>
+                    <p className="text-gray-600 mb-8 text-lg">{error}</p>
+                    <button
+                        onClick={() => navigate('/jobsearch')}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 font-semibold"
+                    >
+                        Back to Search
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    if (!job) return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+            <Header />
+            <div className="text-center text-2xl py-20 text-gray-600">Job not found</div>
+        </div>
+    );
+
+    const renderActionButtons = () => {
+        if (applicationStatus.hasApplied) {
+            return (
+                <div className="space-y-4">
+                    {applicationStatus.questionExist && !applicationStatus.testCompleted ? (
+                        <button
+                            onClick={handleSkillTestClick}
+                            disabled={isActionLoading}
+                            className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-4 px-6 rounded-2xl text-lg hover:from-orange-600 hover:to-red-600 transition-all transform hover:scale-105 flex items-center justify-center disabled:opacity-50 shadow-lg"
+                        >
+                            <FiFileText className="mr-3" /> Take Skill Test
+                        </button>
+                    ) : (
+                        <div className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-6 rounded-2xl text-lg flex items-center justify-center shadow-lg">
+                            <FiCheckCircle className="mr-3" /> Application Submitted
+                        </div>
+                    )}
+                    <button
+                        onClick={handleWithdrawApplication}
+                        disabled={isActionLoading}
+                        className="w-full text-red-600 bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-300 font-semibold py-3 px-6 rounded-2xl transition-all flex items-center justify-center disabled:opacity-50"
+                    >
+                        <FiXCircle className="mr-2" /> Withdraw Application
+                    </button>
+                </div>
+            );
+        }
+        return (
+            <button
+                onClick={handleApplyJob}
+                disabled={isActionLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-6 rounded-2xl text-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 flex items-center justify-center disabled:opacity-50 shadow-lg"
+            >
+                {isActionLoading ? (
+                    <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
+                        Submitting...
+                    </>
+                ) : (
+                    <>
+                        <FiZap className="mr-3" /> Apply Now
+                    </>
+                )}
+            </button>
+        );
+    };
+
+    const StatCard = ({ icon, label, value, color = "blue" }) => (
+        <div className={`bg-gradient-to-br from-${color}-50 to-${color}-100 border border-${color}-200 rounded-2xl p-4 text-center transition-all hover:shadow-lg`}>
+            <div className={`text-${color}-600 text-2xl mb-2 flex justify-center`}>{icon}</div>
+            <p className="text-gray-600 text-sm font-medium">{label}</p>
+            <p className={`text-${color}-700 font-bold text-lg`}>{value}</p>
+        </div>
+    );
+
+    const InfoItem = ({ icon, label, value, highlight = false }) => (
+        <div className={`flex items-center p-4 rounded-2xl transition-all hover:shadow-md ${
+            highlight ? 'bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200' : 'bg-gray-50 hover:bg-gray-100'
+        }`}>
+            <div className={`flex-shrink-0 mr-4 p-3 rounded-xl ${
+                highlight ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white' : 'bg-white text-gray-600 shadow-sm'
+            }`}>
+                {icon}
+            </div>
+            <div className="flex-1">
+                <p className="font-semibold text-gray-800 text-sm uppercase tracking-wide">{label}</p>
+                <p className={`text-lg font-bold ${highlight ? 'text-blue-700' : 'text-gray-700'}`}>{value}</p>
+            </div>
+        </div>
+    );
 
     return (
-        <>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
             <Header />
-            <div className="min-h-screen bg-gray-100">
-                {/* Banner Section */}
-                <div className="bg-gradient-to-r from-blue-500 to-teal-500 text-white text-center py-12">
-                    <h4 className="text-lg font-semibold">Find Your Job Today!</h4>
-                    <h2 className="text-4xl font-bold mt-2">Good Jobs Are Here</h2>
+            
+            <div className="container mx-auto px-4 py-8">
+                {/* Hero Section */}
+                <div className="bg-white rounded-3xl shadow-2xl p-8 mb-8 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full -mr-32 -mt-32"></div>
+                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-indigo-500/10 to-pink-500/10 rounded-full -ml-24 -mb-24"></div>
+                    
+                    <div className="relative z-10">
+                        <button 
+                            onClick={() => navigate(-1)} 
+                            className="flex items-center text-gray-600 hover:text-blue-600 mb-6 font-medium transition-colors group"
+                        >
+                            <FiArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform"/> 
+                            Back to results
+                        </button>
+                        
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex-1">
+                                <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-800 mb-4 leading-tight">
+                                    {job.title}
+                                </h1>
+                                
+                                <div className="flex flex-wrap items-center gap-6 text-gray-600 mb-6">
+                                    <Link 
+                                        to={`/company/${job.companyId?._id}`} 
+                                        className="flex items-center hover:text-blue-600 transition-colors font-semibold"
+                                    >
+                                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
+                                            <FiBriefcase className="text-white text-sm"/>
+                                        </div>
+                                        {job.companyId?.companyName || 'Company'}
+                                    </Link>
+                                    <div className="flex items-center">
+                                        <FiMapPin className="mr-2 text-red-500"/> 
+                                        <span className="font-medium">{job.location || 'Remote'}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <FiCalendar className="mr-2 text-green-500"/> 
+                                        <span>Posted {new Date(job.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <FiEye className="mr-2 text-blue-500"/> 
+                                        <span>{Math.floor(Math.random() * 500) + 100} views</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {job.companyId?.url && (
+                                <div className="ml-6">
+                                    <img 
+                                        src={`http://localhost:5000${job.companyId.url}`} 
+                                        alt="company logo" 
+                                        className="w-20 h-20 lg:w-24 lg:h-24 rounded-2xl shadow-lg object-cover border-4 border-white"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Quick Stats */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            <StatCard 
+                                icon={<FiDollarSign />} 
+                                label="Salary" 
+                                value={job.salary ? `$${job.salary.toLocaleString()}` : 'Negotiable'} 
+                                color="green"
+                            />
+                            <StatCard 
+                                icon={<FiAward />} 
+                                label="Experience" 
+                                value={job.experienceYears ? `${job.experienceYears} years` : 'Any level'} 
+                                color="purple"
+                            />
+                            <StatCard 
+                                icon={<FiUsers />} 
+                                label="Applicants" 
+                                value={`${job.applicantCount || Math.floor(Math.random() * 50) + 10}`} 
+                                color="blue"
+                            />
+                            <StatCard 
+                                icon={<FiClock />} 
+                                label="Deadline" 
+                                value={job.endDate ? new Date(job.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Open'} 
+                                color="orange"
+                            />
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <div className="flex-1">
+                                {renderActionButtons()}
+                            </div>
+                            <button
+                                onClick={handleFavoriteJob}
+                                className={`px-6 py-4 rounded-2xl border-2 transition-all flex items-center justify-center font-semibold ${
+                                    isSaved 
+                                        ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
+                                        : 'bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500'
+                                }`}
+                            >
+                                <FiHeart className={`mr-2 ${isSaved ? 'fill-current' : ''}`} />
+                                <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save'}</span>
+                            </button>
+                            <button
+                                onClick={handleShareJob}
+                                className="px-6 py-4 bg-white border-2 border-gray-200 text-gray-600 rounded-2xl hover:border-blue-300 hover:text-blue-500 transition-all flex items-center justify-center font-semibold"
+                            >
+                                <FiShare2 className="mr-2" />
+                                <span className="hidden sm:inline">Share</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Detail Jobs Section */}
-                <div className="container mx-auto px-4 py-8">
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold text-gray-800">Detail Jobs</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        {/* Left Column */}
-                        <div className="lg:col-span-7 bg-white p-6 shadow-lg rounded-md">
-                            <div className="mb-4 text-sm text-gray-600">
-                                <span className="mr-2">🔴 {job.location}</span>
-                                <span className="mr-2">🔴 {job.date}</span>
-                                <span className="mr-2">🔴 Contract</span>
+                <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+                    {/* Left Column - Main Content */}
+                    <div className="lg:col-span-2 space-y-8">
+                        {/* Job Description */}
+                        <div className="bg-white rounded-3xl shadow-xl p-8">
+                            <div className="flex items-center mb-6">
+                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mr-4">
+                                    <FiFileText className="text-white"/>
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-800">Job Description</h2>
                             </div>
-                            <p className="text-gray-700 mb-4">{job.description}</p>
-
-                            <h6 className="text-lg font-semibold text-gray-800 mb-4">
-                                Exciting Career at {job.company.companyName}
-                            </h6>
-
-                            <div className="space-y-2">
-                                <div className="font-semibold">* Conditions met</div>
-                                <p>
-                                    <span className="text-gray-600">Company Name: </span>
-                                    <b>{job.company.companyName}</b>
-                                </p>
-                                <p>
-                                    <span className="text-gray-600">Job Position: </span>
-                                    <b>{job.company.address}</b>
-                                </p>
-                                <p>
-<span className="text-gray-600">Year Experience: </span>
-                                    <b>{job.experienceYears}</b>
-                                </p>
-                                <p>
-                                    <span className="text-gray-600">Salary: </span>
-                                    <b>{job.salary}</b>
-                                </p>
-                                <p>
-                                    <span className="text-gray-600">Location: </span>
-                                    <b>{job.location}</b>
-                                </p>
+                            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
+                                <div dangerouslySetInnerHTML={{ 
+                                    __html: job.description?.replace(/\n/g, '<br />') || 'No description provided.' 
+                                }} />
                             </div>
                         </div>
 
-                        {/* Right Column */}
-                        <div className="lg:col-span-5">
-                            <div className="bg-white p-6 shadow-lg rounded-md">
-                                {job.state === "Frozen" ? (
-                                    <p className="text-red-500 font-semibold">
-                                        The job is currently full. Please check back later.
-                                    </p>
-                                ) : applicationId == null ? (
-                                    <button
-                                        className="btn bg-yellow-500 text-white w-full py-2 mb-2 hover:bg-yellow-600"
-                                        onClick={handleApplyJob}
-                                    >
-                                        Apply To This Job
-                                        <input hidden id="userId" value={user ? "true" : "false"} />
-                                    </button>
-                                ) : (
-                                    <>
-                                        {applicationId != null && (!testCompleted || !questionExist) ? (
-                                            <button
-                                                className="btn bg-yellow-500 text-white w-full py-2 mb-2 hover:bg-yellow-600"
-                                                onClick={handleSkillTestClick} // Gọi hàm khi click
-                                            >
-                                                Do Skill Test
-                                            </button>
-                                        ) : (
-                                            console.log("Test Completed")
-                                        )}
-                                        <button
-                                            className="btn bg-red-500 text-white w-full py-2 mb-2 hover:bg-red-600"
-                                            onClick={handleWithdrawApplication}
-                                        >
-                                            Withdraw Job Application
-                                        </button>
-                                    </>
-                                )}
-                                <button
-className="btn bg-yellow-500 text-white w-full py-2 hover:bg-yellow-600"
-                                    onClick={handleFavoriteJob}
-                                >
-                                    Save Favorite Job
-                                    <input hidden id="userId" value={user ? "true" : "false"} readOnly />
-                                </button>
+                        {/* Requirements */}
+                        {job.requirements && job.requirements.length > 0 && (
+                            <div className="bg-white rounded-3xl shadow-xl p-8">
+                                <div className="flex items-center mb-6">
+                                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center mr-4">
+                                        <FiTarget className="text-white"/>
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-gray-800">Requirements</h2>
+                                </div>
+                                <div className="space-y-3">
+                                    {job.requirements.map((req, i) => (
+                                        <div key={i} className="flex items-start">
+                                            <div className="w-2 h-2 bg-gradient-to-r from-orange-500 to-red-500 rounded-full mt-3 mr-4 flex-shrink-0"></div>
+                                            <p className="text-gray-700 leading-relaxed">{req}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Benefits */}
+                        {job.benefits && job.benefits.length > 0 && (
+                            <div className="bg-white rounded-3xl shadow-xl p-8">
+                                <div className="flex items-center mb-6">
+                                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mr-4">
+                                        <FiShield className="text-white"/>
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-gray-800">Benefits & Perks</h2>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {job.benefits.map((benefit, i) => (
+                                        <div key={i} className="flex items-center bg-green-50 rounded-2xl p-4">
+                                            <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                                                <FiCheckCircle className="text-white text-sm"/>
+                                            </div>
+                                            <p className="text-green-700 font-medium">{benefit}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right Column - Sidebar */}
+                    <div className="lg:col-span-1 space-y-6 mt-8 lg:mt-0">
+                        <div className="sticky top-24 space-y-6">
+                            {/* Job Overview */}
+                            <div className="bg-white rounded-3xl shadow-xl p-6">
+                                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                                    <FiTrendingUp className="mr-3 text-blue-500"/>
+                                    Job Overview
+                                </h3>
+                                <div className="space-y-4">
+                                    <InfoItem 
+                                        icon={<FiDollarSign/>} 
+                                        label="Salary Range" 
+                                        value={job.salary ? `$${job.salary.toLocaleString()} USD` : 'Negotiable'} 
+                                        highlight={true}
+                                    />
+                                    <InfoItem 
+                                        icon={<FiAward/>} 
+                                        label="Experience Required" 
+                                        value={job.experienceYears ? `${job.experienceYears} years` : 'Not specified'} 
+                                    />
+                                    <InfoItem 
+                                        icon={<FiBriefcase/>} 
+                                        label="Employment Type" 
+                                        value={job.jobType || 'Full-time'} 
+                                    />
+                                    <InfoItem 
+                                        icon={<FiClock/>} 
+                                        label="Application Deadline" 
+                                        value={job.endDate ? new Date(job.endDate).toLocaleDateString() : 'Open until filled'}
+                                    />
+                                </div>
                             </div>
 
-                            <div className="mt-6">
-                                <img
-                                    className="w-full rounded-md"
-                                    src="https://static.kinhtedothi.vn/images/upload/2021/12/25/27046022-766e-43fe-9996-c6c41028421e.jpg"
-                                    alt="Company"
-                                />
+                            {/* Company Information */}
+                            {job.companyId && (
+                                <div className="bg-white rounded-3xl shadow-xl p-6">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                                        <FiBriefcase className="mr-3 text-purple-500"/>
+                                        About Company
+                                    </h3>
+                                    <div className="text-center mb-6">
+                                        {job.companyId.url ? (
+                                            <img 
+                                                src={`http://localhost:5000${job.companyId.url}`} 
+                                                alt="company logo" 
+                                                className="w-20 h-20 rounded-2xl mx-auto mb-4 shadow-lg object-cover border-4 border-gray-100"
+                                            />
+                                        ) : (
+                                            <div className="w-20 h-20 rounded-2xl mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                                                <FiBriefcase className="text-3xl text-white"/>
+                                            </div>
+                                        )}
+                                        <h4 className="font-bold text-xl text-gray-800 mb-2">{job.companyId.companyName}</h4>
+                                        <p className="text-gray-600 mb-4">{job.companyId.address}</p>
+                                        <div className="flex items-center justify-center text-sm text-gray-500 mb-6">
+                                            <FiStar className="mr-1 text-yellow-500"/>
+                                            <span className="font-semibold">4.5</span>
+                                            <span className="mx-2">•</span>
+                                            <span>{Math.floor(Math.random() * 500) + 100} reviews</span>
+                                        </div>
+                                    </div>
+                                    <Link 
+                                        to={`/company/${job.companyId._id}`} 
+                                        className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-3 px-6 rounded-2xl hover:from-purple-700 hover:to-pink-700 transition-all font-semibold transform hover:scale-105"
+                                    >
+                                        View Company Profile
+                                    </Link>
+                                </div>
+                            )}
+
+                            {/* Quick Actions */}
+                            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl p-6 border border-blue-200">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Quick Actions</h3>
+                                <div className="space-y-3">
+                                    <button className="w-full flex items-center justify-center bg-white text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors font-medium border border-gray-200">
+                                        <FiBookmark className="mr-2"/>
+                                        Save for later
+                                    </button>
+                                    <button className="w-full flex items-center justify-center bg-white text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-50 transition-colors font-medium border border-gray-200">
+                                        <FiMail className="mr-2"/>
+                                        Email to friend
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* Modal for user profile and job application */}
-            {modalData && (
-                <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-                    role="dialog"
-                >
-                    <div className="bg-white w-full max-w-5xl rounded-lg shadow-lg">
-                        <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                            <h5 className="text-lg font-semibold">User Profile</h5>
-                            <button
-                                className="text-gray-500 hover:text-gray-700"
-                                onClick={closeModal}
-                            >
-                                <span className="text-2xl font-bold">&times;</span>
-                            </button>
-                        </div>
-                        <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Left Side */}
-                            <div className="text-center">
-                                <div className="bg-blue-600 text-white p-3 rounded-md">
-                                    Welcome, <p>{modalData?.email || "N/A"}</p>
-                                </div>
-                                <img
-                                    src={cvProfile?.avatar ? `http://localhost:8080${cvProfile.avatar}` : '/default-avatar.jpg'}
-                                    alt="Avatar"
-                                    style={{ width: '100%' }}
-                                />
-                                <h5 className="mt-4 font-bold text-gray-800">
-                                    {modalData?.firstName} {modalData?.lastName}
-                                </h5>
-                                <div>
-                                    <h6 style={{
-                                        backgroundColor: '#0d64fb',
-                                        color: 'white',
-padding: '5px'
-                                    }}>Education:</h6>
-                                    <p>{cvProfile?.education || 'N/A'}</p>
-                                    <h6 style={{
-                                        backgroundColor: '#0d64fb',
-                                        color: 'white',
-                                        padding: '5px'
-                                    }}>Skills:</h6>
-                                    <p>{cvProfile?.skills || 'N/A'}</p>
-                                </div>
-                            </div>
-
-                            {/* Right Side */}
-                            <div className="lg:col-span-2">
-                                <h4 className="text-xl font-bold mb-4">Profile</h4>
-                                <table className="table-auto w-full">
-                                    <tbody>
-                                        <tr>
-                                            <td className="font-semibold">Email</td>
-                                            <td>{modalData?.email || "N/A"}</td>
-                                        </tr>
-                                        <tr>
-                                            <td className="font-semibold">Phone Number</td>
-                                            <td>{modalData?.phoneNumber || "N/A"}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>City</td>
-                                            <td>{modalData?.city || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Experience</td>
-                                            <td>{cvProfile?.experience || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Certifications</td>
-                                            <td>{cvProfile?.certifications || 'N/A'}</td>
-                                        </tr>
-                                        <tr>
-                                            <td>Link Pdf</td>
-                                            <td>
-                                                {cvProfile?.linkPdf ? (
-                                                    <div>
-                                                        <button
-                                                            style={{
-                                                                backgroundColor: '#0d64fb',
-                                                                color: 'white',
-                                                                padding: '5px',
-                                                                marginRight: '10px'
-                                                            }}
-onClick={() => window.open(
-                                                                cvProfile.linkPdf.startsWith('http')
-                                                                    ? cvProfile.linkPdf
-                                                                    : `http://localhost:8080${cvProfile.linkPdf}`,
-                                                                '_blank'
-                                                            )}
-                                                        >
-                                                            Show More
-                                                        </button>
-                                                        <button
-                                                            style={{
-                                                                backgroundColor: '#28a745',
-                                                                color: 'white',
-                                                                padding: '5px'
-                                                            }}
-                                                            onClick={() => {
-                                                                const fileUrl = cvProfile.linkPdf.startsWith('http')
-                                                                    ? cvProfile.linkPdf
-                                                                    : `http://localhost:8080${cvProfile.linkPdf}`;
-
-                                                                fetch(fileUrl)
-                                                                    .then(response => {
-                                                                        if (!response.ok) {
-                                                                            throw new Error('Network response was not ok');
-                                                                        }
-                                                                        return response.blob(); // Lấy dữ liệu dưới dạng blob
-                                                                    })
-                                                                    .then(blob => {
-                                                                        const link = document.createElement('a');
-                                                                        const url = URL.createObjectURL(blob); // Tạo URL từ blob
-                                                                        link.href = url;
-                                                                        link.setAttribute('download', 'application.pdf'); // Đặt tên file tải về
-                                                                        document.body.appendChild(link);
-                                                                        link.click();
-document.body.removeChild(link);
-                                                                        URL.revokeObjectURL(url); // Xóa URL blob để giải phóng bộ nhớ
-                                                                    })
-                                                                    .catch(error => {
-                                                                        console.error('File download failed:', error); // Hiển thị lỗi nếu có
-                                                                    });
-                                                            }}
-                                                        >
-                                                            Download
-                                                        </button>
-
-                                                    </div>
-                                                ) : (
-                                                    'N/A'
-                                                )}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div className="p-6 flex justify-end space-x-4">
-                            <button className="btn bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600" onClick={applyJob}>
-                                Confirm Application
-                            </button>
-                            <button className="btn bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600" onClick={closeModal}>
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-
+        </div>
     );
 };
-
 
 export default JobDetail;

@@ -1,327 +1,852 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
 import useBanCheck from '../admin/checkban';
+import { FiZap, FiStar, FiArrowRight, FiLock } from 'react-icons/fi';
+import toastr from 'toastr';
 
 const JobSearch = () => {
     const BanPopup = useBanCheck();
     const navigate = useNavigate();
     const [jobs, setJobs] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [filters, setFilters] = useState({
-        title: '',
-        companyName: '',
-        location: '',
-        minSalary: '',
-        minExperience: ''
+    const [isSearching, setIsSearching] = useState(false);
+    const isInitialMount = useRef(true);
+    const [userUsage, setUserUsage] = useState(null);
+    const [subscription, setSubscription] = useState(null);
+    const [showLimitModal, setShowLimitModal] = useState(false);
+    const [pagination, setPagination] = useState({
+        currentPage: 1,
+        totalPages: 0,
+        totalJobs: 0,
+        hasNextPage: false,
+        hasPrevPage: false
     });
 
-    const debounce = (func, wait) => {
-        let timeout;
-        return (...args) => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func(...args), wait);
-        };
+    // Enhanced filters to match your API
+    const [filters, setFilters] = useState({
+        keyword: '',
+        location: '',
+        jobType: '',
+        minSalary: '',
+        maxSalary: '',
+        experience: '',
+        education: '',
+        skills: ''
+    });
+
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+    // Job types for dropdown
+    const jobTypes = [
+        'Full-time',
+        'Part-time',
+        'Contract',
+        'Internship',
+        'Freelance'
+    ];
+
+    // Experience levels
+    const experienceLevels = [
+        'Entry Level',
+        'Mid Level',
+        'Senior Level',
+        'Executive'
+    ];
+
+    // Education levels
+    const educationLevels = [
+        'High School',
+        'Associate Degree',
+        'Bachelor\'s Degree',
+        'Master\'s Degree',
+        'PhD'
+    ];
+
+    // Get user token
+    const getUserToken = () => {
+        const user = JSON.parse(localStorage.getItem('user'));
+        return user?.token;
     };
 
-    const [page, setPage] = useState(0);
-    const [size, setSize] = useState(10);
-    const [totalPages, setTotalPages] = useState(0);
+    // Fetch user usage and subscription data
+    useEffect(() => {
+        const fetchUserData = async () => {
+            const token = getUserToken();
+            if (!token) return;
 
-    const fetchJobs = async (searchParams = '') => {
+            try {
+                // Fetch usage stats
+                const usageResponse = await fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (usageResponse.ok) {
+                    const usageData = await usageResponse.json();
+                    setUserUsage(usageData.result);
+                }
+
+                // Fetch current subscription
+                const subResponse = await fetch('http://localhost:5000/api/subscriptions/current', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (subResponse.ok) {
+                    const subData = await subResponse.json();
+                    setSubscription(subData.result);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+
+        fetchUserData();
+    }, []);
+
+    // Limit enforcement modal
+    const LimitModal = () => (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full mx-4 text-center">
+                <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <FiLock className="text-white text-3xl"/>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                    Monthly Limit Reached
+                </h3>
+                <p className="text-gray-600 mb-6">
+                    You've reached your monthly limit for saved jobs. Upgrade to Premium to save unlimited jobs and unlock more features!
+                </p>
+                <div className="space-y-3">
+                    <button
+                        onClick={() => {
+                            setShowLimitModal(false);
+                            navigate('/packages');
+                        }}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-6 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all font-semibold flex items-center justify-center"
+                    >
+                        <FiStar className="mr-2"/>
+                        Upgrade Now
+                    </button>
+                    <button
+                        onClick={() => setShowLimitModal(false)}
+                        className="w-full text-gray-600 hover:text-gray-800 font-medium"
+                    >
+                        Maybe Later
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Usage banner component
+    const UsageBanner = () => {
+        if (!userUsage || subscription?.planId?.name === 'Enterprise') return null;
+
+        const savedJobsUsage = userUsage.savedJobs;
+        const applicationsUsage = userUsage.jobApplications;
+        
+        const isNearLimit = (usage) => {
+            if (usage.limit === -1) return false;
+            return (usage.used / usage.limit) >= 0.8;
+        };
+
+        const showBanner = isNearLimit(savedJobsUsage) || isNearLimit(applicationsUsage);
+
+        if (!showBanner) return null;
+
+        return (
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-2xl p-6 mb-8">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-bold mb-2">You're approaching your monthly limits!</h3>
+                        <div className="text-sm opacity-90">
+                            {isNearLimit(savedJobsUsage) && (
+                                <p>Saved Jobs: {savedJobsUsage.used}/{savedJobsUsage.limit}</p>
+                            )}
+                            {isNearLimit(applicationsUsage) && (
+                                <p>Applications: {applicationsUsage.used}/{applicationsUsage.limit}</p>
+                            )}
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => navigate('/packages')}
+                        className="bg-white text-orange-600 px-6 py-3 rounded-xl hover:bg-orange-50 transition-colors font-semibold flex items-center"
+                    >
+                        <FiZap className="mr-2"/>
+                        Upgrade
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const fetchJobs = async (page = 1) => {
         setIsLoading(true);
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const queryParams = new URLSearchParams(searchParams);
-            queryParams.append("page", page);
-            queryParams.append("size", size);
-            const response = await fetch(`http://localhost:8080/search2?${queryParams.toString()}`, {
-                headers: {
-                    'Authorization': `Bearer ${user?.token}`
+            const queryParams = new URLSearchParams();
+            
+            // Add all non-empty filters to query params
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value && value.trim() !== '') {
+                    queryParams.append(key, value.trim());
                 }
             });
+            
+            // Add pagination
+            queryParams.append('page', page.toString());
+            queryParams.append('limit', '12'); // Show 12 jobs per page
+            
+            
+            const response = await fetch(`http://localhost:5000/api/jobs?${queryParams.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${user?.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
             if (response.ok) {
                 const data = await response.json();
-                setJobs(data.content);
-                setTotalPages(data.totalPages);
+                console.log('API Response:', data);
+                
+                if (data.status) {
+                    setJobs(data.result || []);
+                    
+                    // Map the pagination data correctly from your backend
+                    const paginationData = data.pagination || {};
+                    setPagination({
+                        currentPage: paginationData.currentPage || 1,
+                        totalPages: paginationData.totalPages || 0,
+                        totalJobs: paginationData.totalJobs || 0,
+                        hasNextPage: paginationData.hasNextPage || false,
+                        hasPrevPage: paginationData.hasPrevPage || false
+                    });
+                } else {
+                    console.error('API returned error:', data.message);
+                    setJobs([]);
+                    setPagination({
+                        currentPage: 1,
+                        totalPages: 0,
+                        totalJobs: 0,
+                        hasNextPage: false,
+                        hasPrevPage: false
+                    });
+                }
             } else {
-                console.error('Failed to fetch jobs');
+                console.error('Failed to fetch jobs:', response.status);
+                setJobs([]);
+                setPagination({
+                    currentPage: 1,
+                    totalPages: 0,
+                    totalJobs: 0,
+                    hasNextPage: false,
+                    hasPrevPage: false
+                });
             }
         } catch (error) {
             console.error('Error fetching jobs:', error);
+            setJobs([]);
+            setPagination({
+                currentPage: 1,
+                totalPages: 0,
+                totalJobs: 0,
+                hasNextPage: false,
+                hasPrevPage: false
+            });
         } finally {
             setIsLoading(false);
+            setIsSearching(false);
         }
     };
 
+    // Handle save job with limit checking
+    const handleSaveJob = async (jobId) => {
+        const token = getUserToken();
+        if (!token) {
+            toastr.warning('Please log in to save jobs');
+            navigate('/login');
+            return;
+        }
 
+        // Check limits for free users
+        if (userUsage && userUsage.savedJobs.limit !== -1) {
+            if (userUsage.savedJobs.used >= userUsage.savedJobs.limit) {
+                setShowLimitModal(true);
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/jobs/save', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ jobId })
+            });
+
+            if (response.ok) {
+                toastr.success('Job saved successfully!');
+                // Update usage stats
+                setUserUsage(prev => ({
+                    ...prev,
+                    savedJobs: {
+                        ...prev.savedJobs,
+                        used: prev.savedJobs.used + 1
+                    }
+                }));
+            } else {
+                const error = await response.json();
+                toastr.error(error.message || 'Failed to save job');
+            }
+        } catch (error) {
+            console.error('Error saving job:', error);
+            toastr.error('Failed to save job');
+        }
+    };
+
+    // Initial load
     useEffect(() => {
-        const queryParams = new URLSearchParams();
-        Object.entries(filters).forEach(([key, val]) => {
-            if (val) queryParams.append(key, val);
-        });
-        fetchJobs(`?${queryParams.toString()}`);
-    }, [page, size]);
+        fetchJobs(1);
+    }, []);
 
+    // Handle filter changes with debouncing
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
 
-    const debouncedFetch = debounce((searchParams) => {
-        fetchJobs(searchParams);
-    }, 500);
+        const handler = setTimeout(() => {
+            fetchJobs(1);
+        }, 500);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [filters]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        
+        // Show searching state immediately
+        setIsSearching(true);
+        
         setFilters(prev => ({
             ...prev,
             [name]: value
         }));
-
-        const queryParams = new URLSearchParams();
-        const updatedFilters = { ...filters, [name]: value };
-        Object.entries(updatedFilters).forEach(([key, val]) => {
-            if (val) queryParams.append(key, val);
-        });
-
-        queryParams.append("page", page);
-        queryParams.append("size", size);
-        debouncedFetch(`?${queryParams.toString()}`);
+        
+        // Reset to page 1 when filters change
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
     };
 
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, currentPage: newPage }));
+        fetchJobs(newPage);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const queryParams = new URLSearchParams();
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value) queryParams.append(key, value);
+    const clearFilters = () => {
+        setFilters({
+            keyword: '',
+            location: '',
+            jobType: '',
+            minSalary: '',
+            maxSalary: '',
+            experience: '',
+            education: '',
+            skills: ''
         });
-        fetchJobs(`?${queryParams.toString()}`);
+        setPagination(prev => ({ ...prev, currentPage: 1 }));
+        // Immediately fetch all jobs when clearing filters
+        fetchJobs(1);
+    };
+
+    const formatSalary = (salary) => {
+        if (!salary) return 'Negotiable';
+        return `$${parseInt(salary).toLocaleString()}`;
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    const getCompanyName = (companyId) => {
+        // For now, just return a placeholder. 
+        // In a real app, you might want to fetch company details or have them populated
+        if (!companyId) return 'Company';
+        return `Company (${companyId.slice(-8)})`;
     };
 
     return (
-        <>
+        <div className="min-h-screen bg-gray-50">
             {BanPopup}
             <Header />
-            <div className="container mx-auto px-4 py-8 mt-20">
-                <h1 className="text-3xl font-bold text-center mb-8">List of Jobs</h1>
+            
+            {/* Hero Section */}
+            <div className="w-full bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 py-16 mt-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
+                        Find Your Dream Job
+                    </h1>
+                    <p className="text-lg sm:text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+                        Discover thousands of opportunities from top companies around the world
+                    </p>
+                    
+                    {/* Quick Search Bar */}
+                    <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-4 sm:p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-2">
+                                <input
+                                    type="text"
+                                    name="keyword"
+                                    value={filters.keyword}
+                                    onChange={handleInputChange}
+                                    placeholder="Job title, skills, or company..."
+                                    className="w-full p-3 sm:p-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
+                            <div>
+                                <input
+                                    type="text"
+                                    name="location"
+                                    value={filters.location}
+                                    onChange={handleInputChange}
+                                    placeholder="Location..."
+                                    className="w-full p-3 sm:p-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors"
+                                />
+                            </div>
+                            <button
+                                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                                className="bg-blue-600 text-white p-3 sm:p-4 rounded-xl hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
+                            >
+                                {showAdvancedFilters ? 'Hide Filters' : 'More Filters'}
+                            </button>
+                        </div>
+                        
+                        {/* Advanced Filters */}
+                        {showAdvancedFilters && (
+                            <div className="mt-6 p-4 sm:p-6 bg-gray-50 rounded-xl">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    {/* Job Type */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Job Type
+                                        </label>
+                                        <select
+                                            name="jobType"
+                                            value={filters.jobType}
+                                            onChange={handleInputChange}
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
+                                        >
+                                            <option value="">All Types</option>
+                                            {jobTypes.map(type => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                {/* Main Content Layout */}
-                <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Left Side - Search and Filters */}
-                    <div className="lg:w-1/4">
-                        <div className="bg-white rounded-lg shadow-md p-6 sticky top-24">
-                            <div className="space-y-6">
-                                {/* Search Bar */}
-                                <div className="search-wrap">
-                                    <input
-                                        type="search"
-                                        name="title"
-                                        value={filters.title}
-                                        onChange={handleInputChange}
-                                        placeholder="Search for jobs..."
-                                        className="w-full p-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
+                                    {/* Experience */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Experience Level
+                                        </label>
+                                        <select
+                                            name="experience"
+                                            value={filters.experience}
+                                            onChange={handleInputChange}
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
+                                        >
+                                            <option value="">All Levels</option>
+                                            {experienceLevels.map(level => (
+                                                <option key={level} value={level}>{level}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
-                                {/* Filter Section */}
-                                <div className="space-y-4">
-                                    {/* Company Filter */}
-                                    <div className="filter-group">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Company
+                                    {/* Education */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Education
+                                        </label>
+                                        <select
+                                            name="education"
+                                            value={filters.education}
+                                            onChange={handleInputChange}
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
+                                        >
+                                            <option value="">All Education</option>
+                                            {educationLevels.map(level => (
+                                                <option key={level} value={level}>{level}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Skills */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Skills
                                         </label>
                                         <input
                                             type="text"
-                                            name="companyName"
-                                            value={filters.companyName}
+                                            name="skills"
+                                            value={filters.skills}
                                             onChange={handleInputChange}
-                                            placeholder="Enter company name"
-                                            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., React, Python..."
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
                                         />
                                     </div>
 
-                                    {/* Experience Filter */}
-                                    <div className="filter-group">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Years of Experience
-                                        </label>
-                                        <input
-                                            type="number"
-                                            name="minExperience"
-                                            value={filters.minExperience}
-                                            onChange={handleInputChange}
-                                            placeholder="Minimum years"
-                                            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    {/* Location Filter */}
-                                    <div className="filter-group">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Location
-                                        </label>
-                                        <input
-                                            type="text"
-                                            name="location"
-                                            value={filters.location}
-                                            onChange={handleInputChange}
-                                            placeholder="Enter location"
-                                            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-
-                                    {/* Salary Filter */}
-                                    <div className="filter-group">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Minimum Salary
+                                    {/* Min Salary */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Min Salary
                                         </label>
                                         <input
                                             type="number"
                                             name="minSalary"
                                             value={filters.minSalary}
                                             onChange={handleInputChange}
-                                            placeholder="Enter amount"
-                                            className="w-full p-3 border rounded-md focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Min salary..."
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
                                         />
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Side - Job Listings */}
-                    <div className="lg:w-3/4">
-                        {/* Loading State */}
-                        {isLoading && (
-                            <div className="flex justify-center items-center py-8">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                            </div>
-                        )}
-
-                        {/* Job Results Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {jobs.map((job, index) => (
-                                <div
-                                    key={index}
-                                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
-                                >
-                                    {/* Top section with job info */}
+                                    
+                                    {/* Max Salary */}
                                     <div>
-                                        <h2 className="text-xl font-semibold text-gray-800 mb-4 line-clamp-2">
-                                            {job.title}
-                                        </h2>
-                                        <div className="space-y-3">
-                                            <img
-                                                src={`http://localhost:8080${job.company.url}`}
-                                                alt="Avatar"
-                                                style={{ width: '100%' }}
-                                            />
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Company:</span>
-                                                <span className="line-clamp-1">{job.company.companyName}</span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Location:</span>
-                                                <span className="line-clamp-1">{job.location}</span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Salary:</span>
-                                                <span>${job.salary.toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Experience:</span>
-                                                <span>{job.experienceYears} years</span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Start Date:</span>
-                                                <span>
-                                                    {job.startDate ? new Date(job.startDate).toLocaleDateString() : 'N/A'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">End Date:</span>
-                                                <span>
-                                                    {job.endDate ? new Date(job.endDate).toLocaleDateString() : 'N/A'}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center text-gray-600">
-                                                <span className="font-medium w-24">Applicants:</span>
-                                                <span>{job.applicantCount || 0}</span>
-                                            </div>
-                                        </div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Max Salary
+                                        </label>
+                                        <input
+                                            type="number"
+                                            name="maxSalary"
+                                            value={filters.maxSalary}
+                                            onChange={handleInputChange}
+                                            placeholder="Max salary..."
+                                            className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
+                                        />
                                     </div>
-
-                                    {/* Bottom section with buttons */}
-                                    <div className="mt-4 grid grid-cols-2 gap-2">
+                                    
+                                    {/* Clear Filters Button */}
+                                    <div className="sm:col-span-2 flex items-end">
                                         <button
-                                            onClick={() => navigate(`/jobs-detail?jobId=${job.jobId}`)}
-                                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                            onClick={clearFilters}
+                                            className="w-full bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition-colors"
                                         >
-                                            View Details
-                                        </button>
-                                        <button
-                                            onClick={() => {/* Add save job functionality */ }}
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                                        >
-                                            Save Job
+                                            Clear All Filters
                                         </button>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-6 flex justify-center items-center space-x-2">
-                            {/* Previous Button */}
-                            <button
-                                disabled={page === 0}
-                                onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
-                                className={`px-4 py-2 rounded-md border ${page === 0
-                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    : "bg-white text-gray-700 hover:bg-gray-100"
-                                    }`}
-                            >
-                                Previous
-                            </button>
-
-                            {/* Page Numbers */}
-                            {Array.from({ length: totalPages }, (_, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => setPage(index)}
-                                    className={`px-4 py-2 rounded-md ${page === index
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white text-gray-700 hover:bg-gray-100"
-                                        }`}
-                                >
-                                    {index + 1}
-                                </button>
-                            ))}
-
-                            {/* Next Button */}
-                            <button
-                                disabled={page + 1 === totalPages}
-                                onClick={() => setPage((prev) => prev + 1)}
-                                className={`px-4 py-2 rounded-md border ${page + 1 === totalPages
-                                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    : "bg-white text-gray-700 hover:bg-gray-100"
-                                    }`}
-                            >
-                                Next
-                            </button>
-                        </div>
-
-
-                        {/* No Results State */}
-                        {!isLoading && jobs.length === 0 && (
-                            <div className="text-center py-8">
-                                <div className="text-gray-500 text-lg">
-                                    No jobs found matching your criteria
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
-        </>
-    );
 
-}
+            {/* Main Content */}
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+                {/* Usage Banner */}
+                <UsageBanner />
+
+                {/* Results Header */}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 gap-4">
+                    <div>
+                        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 flex items-center">
+                            {pagination.totalJobs > 0 ? (
+                                <>Found {pagination.totalJobs.toLocaleString()} jobs</>
+                            ) : (
+                                'Search Results'
+                            )}
+                            {isSearching && (
+                                <div className="ml-3 animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                            )}
+                        </h2>
+                        {pagination.totalJobs > 0 && (
+                            <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                                Page {pagination.currentPage} of {pagination.totalPages}
+                                {pagination.totalPages > 0 && (
+                                    <span className="ml-2">
+                                        • Showing {((pagination.currentPage - 1) * 12) + 1}-{Math.min(pagination.currentPage * 12, pagination.totalJobs)} of {pagination.totalJobs} jobs
+                                    </span>
+                                )}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Loading State - Only show when initial loading */}
+                {isLoading && !isSearching && (
+                    <div className="flex justify-center items-center py-16">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                            <p className="text-gray-600 text-lg">Loading jobs...</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Job Results Grid */}
+                {!isLoading && jobs.length > 0 && (
+                    <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 mb-8 sm:mb-12 transition-opacity duration-300 ${
+                        isSearching ? 'opacity-50' : 'opacity-100'
+                    }`}>
+                        {jobs.map((job, index) => (
+                            <div
+                                key={job._id || index}
+                                className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden flex flex-col"
+                            >
+                                {/* Content wrapper that grows */}
+                                <div className="flex-grow">
+                                    {/* Job Card Header */}
+                                    <div className="p-4 sm:p-6 border-b border-gray-100">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2 line-clamp-2">
+                                                    {job.title}
+                                                </h3>
+                                                <p className="text-blue-600 font-semibold truncate">
+                                                    {getCompanyName(job.companyId)}
+                                                </p>
+                                            </div>
+                                            <div className="ml-3 flex-shrink-0">
+                                                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-lg">
+                                                    {job.title ? job.title.charAt(0).toUpperCase() : 'J'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-2">
+                                            <div className="flex items-center text-gray-600 text-sm">
+                                                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                                <span className="truncate">{job.location}</span>
+                                            </div>
+                                            
+                                            <div className="flex items-center text-gray-600 text-sm">
+                                                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                                </svg>
+                                                <span className="font-semibold text-green-600">
+                                                    {formatSalary(job.salary)}
+                                                </span>
+                                            </div>
+                                            
+                                            {job.experienceYears && (
+                                                <div className="flex items-center text-gray-600 text-sm">
+                                                    <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8zM8 14v.01M12 14v.01M16 14v.01" />
+                                                    </svg>
+                                                    <span className="truncate">{job.experienceYears} years experience</span>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="flex items-center text-gray-600 text-sm">
+                                                <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                                    job.status === 'active' 
+                                                        ? 'bg-green-100 text-green-800' 
+                                                        : 'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {job.status?.charAt(0).toUpperCase() + job.status?.slice(1) || 'Active'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Job Card Body */}
+                                    <div className="p-4 sm:p-6">
+                                        <p className="text-gray-600 text-sm line-clamp-3 mb-4">
+                                            {job.description || 'No description available.'}
+                                        </p>
+                                        
+                                        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-4">
+                                            <span>Posted: {formatDate(job.createdAt)}</span>
+                                            <span>{job.applicantCount || 0} applicants</span>
+                                        </div>
+
+                                        {job.endDate && (
+                                            <div className="flex items-center text-xs sm:text-sm text-orange-600 mb-4">
+                                                <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <span>Deadline: {formatDate(job.endDate)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Footer with Action Buttons */}
+                                <div className="p-4 sm:p-6 pt-0">
+                                    <div className="flex gap-2 sm:gap-3">
+                                        <button
+                                            onClick={() => navigate(`/jobs-detail/${job._id}`)}
+                                            className="flex-1 bg-blue-600 text-white py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
+                                        >
+                                            View Details
+                                        </button>
+                                        <button
+                                            onClick={() => handleSaveJob(job._id)}
+                                            className="px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:text-blue-500 transition-colors"
+                                        >
+                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Pagination */}
+                {!isLoading && pagination.totalPages > 1 && (
+                    <div className="flex flex-wrap justify-center items-center gap-1 sm:gap-2">
+                        <button
+                            disabled={!pagination.hasPrevPage}
+                            onClick={() => handlePageChange(pagination.currentPage - 1)}
+                            className={`px-3 sm:px-6 py-2 sm:py-3 rounded-xl border-2 font-semibold transition-colors text-sm sm:text-base ${
+                                !pagination.hasPrevPage
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-500"
+                            }`}
+                        >
+                            <span className="hidden sm:inline">← Previous</span>
+                            <span className="sm:hidden">←</span>
+                        </button>
+
+                        {/* Page Numbers */}
+                        {(() => {
+                            const pages = [];
+                            const totalPages = pagination.totalPages;
+                            const currentPage = pagination.currentPage;
+                            
+                            // Always show first page
+                            if (totalPages > 0) {
+                                pages.push(1);
+                            }
+                            
+                            // Calculate range around current page
+                            let startPage = Math.max(2, currentPage - 1);
+                            let endPage = Math.min(totalPages - 1, currentPage + 1);
+                            
+                            // Add ellipsis if needed
+                            if (startPage > 2) {
+                                pages.push('...');
+                            }
+                            
+                            // Add middle pages
+                            for (let i = startPage; i <= endPage; i++) {
+                                if (i !== 1 && i !== totalPages) {
+                                    pages.push(i);
+                                }
+                            }
+                            
+                            // Add ellipsis if needed
+                            if (endPage < totalPages - 1) {
+                                pages.push('...');
+                            }
+                            
+                            // Always show last page if more than 1 page
+                            if (totalPages > 1) {
+                                pages.push(totalPages);
+                            }
+                            
+                            return pages.map((page, index) => {
+                                if (page === '...') {
+                                    return (
+                                        <span
+                                            key={`ellipsis-${index}`}
+                                            className="px-2 sm:px-4 py-2 sm:py-3 text-gray-500 text-sm sm:text-base"
+                                        >
+                                            ...
+                                        </span>
+                                    );
+                                }
+                                
+                                return (
+                                    <button
+                                        key={page}
+                                        onClick={() => handlePageChange(page)}
+                                        className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl border-2 font-semibold transition-colors text-sm sm:text-base ${
+                                            pagination.currentPage === page
+                                                ? "bg-blue-600 text-white border-blue-600"
+                                                : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-500"
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                );
+                            });
+                        })()}
+
+                        <button
+                            disabled={!pagination.hasNextPage}
+                            onClick={() => handlePageChange(pagination.currentPage + 1)}
+                            className={`px-3 sm:px-6 py-2 sm:py-3 rounded-xl border-2 font-semibold transition-colors text-sm sm:text-base ${
+                                !pagination.hasNextPage
+                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                    : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-500"
+                            }`}
+                        >
+                            <span className="hidden sm:inline">Next →</span>
+                            <span className="sm:hidden">→</span>
+                        </button>
+                    </div>
+                )}
+
+                {/* No Results State */}
+                {!isLoading && jobs.length === 0 && (
+                    <div className="text-center py-12 sm:py-16">
+                        <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4">
+                            {Object.values(filters).some(value => value && value.trim() !== '') 
+                                ? 'No jobs found matching your search' 
+                                : 'No jobs available'
+                            }
+                        </h3>
+                        <p className="text-gray-600 text-base sm:text-lg mb-6 sm:mb-8 max-w-md mx-auto px-4">
+                            {Object.values(filters).some(value => value && value.trim() !== '') 
+                                ? 'Try adjusting your search criteria or filters to find more opportunities.'
+                                : 'There are currently no active job postings. Please check back later.'
+                            }
+                        </p>
+                        {Object.values(filters).some(value => value && value.trim() !== '') && (
+                            <button
+                                onClick={clearFilters}
+                                className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-xl hover:bg-blue-700 transition-colors font-semibold text-sm sm:text-base"
+                            >
+                                Clear All Filters
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Limit Modal */}
+            {showLimitModal && <LimitModal />}
+        </div>
+    );
+};
 
 export default JobSearch;
