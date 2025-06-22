@@ -34,8 +34,7 @@ const Register = () => {
                 dateOfBirth: formData.dateOfBirth,
                 phone: formData.phone
             };
-
-            const response = await axios.post('http://localhost:5000/api/user/register-jobseeker',
+            const response = await axios.post('http://localhost:5000/api/user/register',
                 dataToSend,  // Send as JSON
                 {
                     headers: {
@@ -69,14 +68,14 @@ const Register = () => {
                         >
                             ×
                         </button>
-    
+
                         <h2 className="text-2xl font-bold text-center text-gray-800 mb-4">
                             Enter OTP
                         </h2>
                         <p className="text-gray-600 text-center mb-8">
                             We have sent a verification code to your email
                         </p>
-    
+
                         <OTPVerificationModal
                             onSuccess={() => {
                                 setShowOtpModal(false);
@@ -104,17 +103,17 @@ const Register = () => {
                         />
                     </div>
                 </div>
-    
+
                 {/* Right Side - Form */}
                 <div className="w-3/5 flex justify-center items-center bg-white">
                     <div className="w-[80%] bg-white rounded-2xl p-10 shadow-md">
                         <div className="flex flex-col items-center">
-                         
+
                             <h2 className="text-3xl font-semibold text-gray-800 mb-8">
                                 Sign up
                             </h2>
                         </div>
-    
+
                         {/* Form Fields */}
                         <div className="space-y-6">
                             <div className="flex gap-4">
@@ -203,7 +202,7 @@ const Register = () => {
                                     </label>
                                 </div>
                             </div>
-    
+
                             <div className="relative">
                                 <input
                                     type="password"
@@ -218,7 +217,7 @@ const Register = () => {
                                 </label>
                             </div>
                         </div>
-    
+
                         {/* Register Button */}
                         <button
                             className="w-full mt-8 p-3 bg-yellow-400 text-white font-medium rounded-md shadow-md hover:bg-yellow-500 transition"
@@ -248,30 +247,30 @@ const Register = () => {
                             ) : null}
                             {isLoading ? "Registering..." : "Register"}
                         </button>
-    
+
                         {/* Error Message */}
                         {error && (
                             <p className="text-red-500 text-sm mt-2 text-center">
                                 {error}
                             </p>
                         )}
-    
+
                         {/* Divider */}
                         <div className="flex items-center my-8">
                             <div className="flex-grow h-px bg-gray-300"></div>
                             <span className="mx-3 text-gray-500 font-medium">or</span>
                             <div className="flex-grow h-px bg-gray-300"></div>
                         </div>
-    
+
                         {/* Google Sign Up */}
                         <button
                             className="flex items-center justify-center w-full p-3 border border-gray-300 rounded-md hover:bg-gray-100 transition"
-                           
+
                         >
-                             <img className="w-6 mr-3" src={logoGoogle} alt="Logo Google" />
+                            <img className="w-6 mr-3" src={logoGoogle} alt="Logo Google" />
                             <span className="text-gray-600 font-medium">Sign up with Google</span>
                         </button>
-    
+
                         {/* Login Link */}
                         <p className="text-center text-gray-600 text-sm mt-6">
                             Already have an account?{" "}
@@ -287,5 +286,5 @@ const Register = () => {
             </div>
         </div>
     );
-}    
+}
 export default Register;

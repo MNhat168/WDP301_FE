@@ -82,7 +82,7 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/");
   };
 
   // Get user token
@@ -241,7 +241,7 @@ const Header = () => {
         <Container>
           <Navbar.Brand as={Link} to="/">
             <img
-              src="/logo.png"
+              src="/images/easyjobb.png"
               width="40"
               height="40"
               className="d-inline-block align-top"
@@ -254,7 +254,6 @@ const Header = () => {
               <Nav.Link as={Link} to="/home">Home</Nav.Link>
               <Nav.Link as={Link} to="/jobsearch">Find Jobs</Nav.Link>
               <Nav.Link as={Link} to="/companies">Companies</Nav.Link>
-              <Nav.Link as={Link} to="/blogs">Blogs</Nav.Link>
             </Nav>
             <Nav className="align-items-center">
               {user ? (
@@ -295,12 +294,6 @@ const Header = () => {
                       <div className="flex items-center">
                         <FiStar className="mr-2"/>
                         Subscription
-                      </div>
-                    </NavDropdown.Item>
-                    <NavDropdown.Item as={Link} to="/changepass">
-                      <div className="flex items-center">
-                        <FiSettings className="mr-2"/>
-                        Settings
                       </div>
                     </NavDropdown.Item>
                     <NavDropdown.Divider />
