@@ -172,9 +172,8 @@ const CreateJob = () => {
       benefits: formData.benefits.filter(benefit => benefit.trim() !== ""),
       skills: formData.skills.filter(skill => skill.trim() !== ""),
       location: location || `${position[0]}, ${position[1]}`,
-      salary: parseInt(formData.salary.min) || parseInt(formData.salary.max) || 0,
-      salaryMin: parseInt(formData.salary.min) || 0,
-      salaryMax: parseInt(formData.salary.max) || 0,
+      minSalary: parseInt(formData.salary.min) || 0,
+      maxSalary: parseInt(formData.salary.max) || 0,
       currency: formData.salary.currency,
       companyId: user.userData?.companyInfo?._id,
       categoryId: selectedCategory.categoryId // Use selectedCategory.categoryId to match the data structure

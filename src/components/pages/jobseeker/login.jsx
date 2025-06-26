@@ -4,14 +4,15 @@ import { useNavigate } from "react-router-dom";
 import { UserContext } from "../../../Context";
 import mainImage from '../../../assets/3dimage.png';
 import logoGoogle from '../../../assets/google.svg';
+import { FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useContext(UserContext);
 
   const handleLogin = async () => {
@@ -96,35 +97,36 @@ const Login = () => {
 
                     {/* Form Fields */}
                     <div className="space-y-6">
+                        {/* Email */}
                         <div className="relative">
+                            <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                                 type="email"
-                                className="p-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                className="pl-10 pr-4 py-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder=" "
+                                placeholder="Email"
                             />
-                            <label className="absolute top-3 left-3 text-gray-800 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                Email
-                            </label>
                         </div>
+                        {/* Password */}
                         <div className="relative">
+                            <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
-                                type="password"
-                                className="p-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                type={showPassword ? 'text' : 'password'}
+                                className="pl-10 pr-10 py-3 pt-4 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder=" "
+                                placeholder="Password"
                             />
-                            <label className="absolute top-3 left-3 text-gray-800 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                Password
-                            </label>
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 focus:outline-none">
+                                {showPassword ? <FiEyeOff /> : <FiEye />}
+                            </button>
                         </div>
                     </div>
 
                     {/* Submit Button */}
                     <button
-                        className="w-full mt-8 p-3 bg-yellow-400 text-white font-medium rounded-md shadow-md hover:bg-yellow-500 transition"
+                        className="w-full mt-8 p-3 bg-yellow-400 text-white font-medium rounded-md shadow-md hover:bg-yellow-500 transition flex items-center justify-center"
                         onClick={handleLogin}
                         disabled={isLoading}
                     >
@@ -149,7 +151,7 @@ const Login = () => {
                                 />
                             </svg>
                         ) : null}
-                        {isLoading ? "Logging in..." : "Login"}
+                        <span>{isLoading ? "Logging in..." : "Login"}</span>
                     </button>
 
                     {error && (
@@ -190,7 +192,7 @@ const Login = () => {
             </div>
         </div>
     </div>
-);
+  );
 }
 
 export default Login;

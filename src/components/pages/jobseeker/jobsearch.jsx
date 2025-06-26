@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
 import useBanCheck from '../admin/checkban';
+import FavoriteButton from '../../common/FavoriteButton';
 import { FiZap, FiStar, FiArrowRight, FiLock } from 'react-icons/fi';
 import toastr from 'toastr';
 
@@ -15,6 +16,7 @@ const JobSearch = () => {
     const [userUsage, setUserUsage] = useState(null);
     const [subscription, setSubscription] = useState(null);
     const [showLimitModal, setShowLimitModal] = useState(false);
+    const [favoriteJobs, setFavoriteJobs] = useState(new Set());
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 0,
@@ -100,6 +102,26 @@ const JobSearch = () => {
                 if (subResponse.ok) {
                     const subData = await subResponse.json();
                     setSubscription(subData.result);
+                }
+
+                // Fetch favorite jobs
+                const favResponse = await fetch('http://localhost:5000/api/jobs/favorites', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (favResponse.ok) {
+                    const favData = await favResponse.json();
+                    if (favData.status && favData.result) {
+                        const favoriteJobIds = new Set(favData.result.map(job => job._id));
+                        setFavoriteJobs(favoriteJobIds);
+                    }
+                } else {
+                    console.warn('Failed to fetch favorites:', favResponse.status);
+                    // Don't fail the whole operation if favorites can't be loaded
+                    setFavoriteJobs(new Set());
                 }
             } catch (error) {
                 console.error('Error fetching user data:', error);
@@ -265,51 +287,34 @@ const JobSearch = () => {
         }
     };
 
-    // Handle save job with limit checking
-    const handleSaveJob = async (jobId) => {
-        const token = getUserToken();
-        if (!token) {
-            toastr.warning('Please log in to save jobs');
-            navigate('/login');
-            return;
+    // Handle favorite toggle
+    const handleFavoriteToggle = (jobId, isFavorite, remainingFavorites) => {
+        const newFavorites = new Set(favoriteJobs);
+        if (isFavorite) {
+            newFavorites.add(jobId);
+        } else {
+            newFavorites.delete(jobId);
         }
+        setFavoriteJobs(newFavorites);
 
-        // Check limits for free users
-        if (userUsage && userUsage.savedJobs.limit !== -1) {
-            if (userUsage.savedJobs.used >= userUsage.savedJobs.limit) {
-                setShowLimitModal(true);
-                return;
-            }
+        // Update usage stats if adding to favorites
+        if (isFavorite && userUsage) {
+            setUserUsage(prev => ({
+                ...prev,
+                savedJobs: {
+                    ...prev.savedJobs,
+                    used: prev.savedJobs.used + 1
+                }
+            }));
         }
+    };
 
-        try {
-            const response = await fetch('http://localhost:5000/api/jobs/save', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ jobId })
-            });
+    const handleAuthRequired = () => {
+        navigate('/login');
+    };
 
-            if (response.ok) {
-                toastr.success('Job saved successfully!');
-                // Update usage stats
-                setUserUsage(prev => ({
-                    ...prev,
-                    savedJobs: {
-                        ...prev.savedJobs,
-                        used: prev.savedJobs.used + 1
-                    }
-                }));
-            } else {
-                const error = await response.json();
-                toastr.error(error.message || 'Failed to save job');
-            }
-        } catch (error) {
-            console.error('Error saving job:', error);
-            toastr.error('Failed to save job');
-        }
+    const handleLimitReached = (errorData) => {
+        setShowLimitModal(true);
     };
 
     // Initial load
@@ -385,10 +390,21 @@ const JobSearch = () => {
     };
 
     const getCompanyName = (companyId) => {
-        // For now, just return a placeholder. 
-        // In a real app, you might want to fetch company details or have them populated
         if (!companyId) return 'Company';
-        return `Company (${companyId.slice(-8)})`;
+
+        // If backend returns full object
+        if (typeof companyId === 'object') {
+            if (companyId.companyName) return companyId.companyName;
+            if (companyId._id && typeof companyId._id === 'string') return `Company (${companyId._id.slice(-8)})`;
+            return 'Company';
+        }
+
+        // If backend returns just an ID string
+        if (typeof companyId === 'string') {
+            return `Company (${companyId.slice(-8)})`;
+        }
+
+        return 'Company';
     };
 
     return (
@@ -700,14 +716,16 @@ const JobSearch = () => {
                                         >
                                             View Details
                                         </button>
-                                        <button
-                                            onClick={() => handleSaveJob(job._id)}
-                                            className="px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:text-blue-500 transition-colors"
-                                        >
-                                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                            </svg>
-                                        </button>
+                                        <FavoriteButton
+                                            jobId={job._id}
+                                            isFavorite={favoriteJobs.has(job._id)}
+                                            onToggle={handleFavoriteToggle}
+                                            onAuthRequired={handleAuthRequired}
+                                            onLimitReached={handleLimitReached}
+                                            variant="icon"
+                                            size="md"
+                                            showTooltip={true}
+                                        />
                                     </div>
                                 </div>
                             </div>

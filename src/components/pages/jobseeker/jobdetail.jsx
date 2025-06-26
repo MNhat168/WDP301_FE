@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from "../../layout/header";
+import FavoriteButton from "../../common/FavoriteButton";
 import toastr from 'toastr';
 import 'toastr/build/toastr.min.css';
 
@@ -114,9 +115,25 @@ const JobDetail = () => {
         const fetchApplicationStatus = async () => {
             if (!jobId || !userIsLoggedIn) return;
             try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                const token = user?.token || user?.accessToken;
+                
+                if (!token) return;
+
                 const response = await fetch(`http://localhost:5000/api/applications/status/${jobId}`, {
-                    headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}` }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
+
+                // Check content type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    if (response.status === 401) {
+                        localStorage.removeItem('user');
+                        return;
+                    }
+                    console.warn('Non-JSON response from application status endpoint');
+                    return;
+                }
 
                 if (response.ok) {
                     const data = await response.json();
@@ -134,6 +151,51 @@ const JobDetail = () => {
         fetchApplicationStatus();
     }, [jobId, userIsLoggedIn]);
 
+    // Check if job is favorited
+    useEffect(() => {
+        const checkFavoriteStatus = async () => {
+            if (!jobId || !userIsLoggedIn) return;
+
+            // 1) Quick check from localStorage user object if it contains favorites
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                if (Array.isArray(user?.favoriteJobs)) {
+                    const quickMatch = user.favoriteJobs.includes(jobId);
+                    if (quickMatch) {
+                        setIsSaved(true);
+                        // still fallback to API to stay consistent but no need if quickMatch true
+                        return;
+                    }
+                }
+            } catch (err) {
+                // ignore JSON parse errors
+            }
+
+            // 2) Fallback: fetch favorites from server
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                const token = user?.token || user?.accessToken;
+                if (!token) return;
+
+                const response = await fetch('http://localhost:5000/api/user/favorites', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status && data.result) {
+                        const favoriteJobIds = data.result.map(job => job._id);
+                        setIsSaved(favoriteJobIds.includes(jobId));
+                    }
+                }
+            } catch (err) {
+                console.error("Could not fetch favorite status:", err);
+            }
+        };
+
+        checkFavoriteStatus();
+    }, [jobId, userIsLoggedIn]);
+
     const handleApplyJob = async () => {
         if (!userIsLoggedIn) {
             toastr.warning('Please log in to apply for jobs.');
@@ -142,23 +204,63 @@ const JobDetail = () => {
         }
         setIsActionLoading(true);
         try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            const token = user?.token || user?.accessToken;
+            
+            if (!token) {
+                toastr.warning('Please log in to apply for jobs.');
+                navigate('/login');
+                return;
+            }
+
             const response = await fetch(`http://localhost:5000/api/applications`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ jobId: job._id })
             });
+
+            // Check if response is HTML (error page)
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const htmlText = await response.text();
+                console.error('Received HTML instead of JSON:', htmlText.substring(0, 200));
+                
+                if (response.status === 401) {
+                    toastr.error('Session expired. Please log in again.');
+                    localStorage.removeItem('user');
+                    navigate('/login');
+                    return;
+                }
+                
+                throw new Error(`Server returned ${response.status}. Please try again later.`);
+            }
+
             const data = await response.json();
-            if (!response.ok) throw new Error(data.message || 'Failed to apply.');
             
-            toastr.success('Application submitted successfully!');
-            setApplicationStatus({ hasApplied: true, ...data.result });
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP ${response.status}: Failed to apply`);
+            }
+            
+            if (data.status) {
+                toastr.success('Application submitted successfully!');
+                setApplicationStatus({ hasApplied: true, ...data.result });
+            } else {
+                throw new Error(data.message || 'Application failed');
+            }
 
         } catch (err) {
-            toastr.error(err.message || 'An error occurred while applying.');
             console.error('Error applying to job:', err);
+            
+            if (err.name === 'SyntaxError' && err.message.includes('JSON')) {
+                toastr.error('Server error. Please try again later.');
+            } else if (err.message.includes('NetworkError') || err.message.includes('fetch')) {
+                toastr.error('Network error. Please check your connection.');
+            } else {
+                toastr.error(err.message || 'An error occurred while applying.');
+            }
         } finally {
             setIsActionLoading(false);
         }
@@ -171,31 +273,65 @@ const JobDetail = () => {
         }
         setIsActionLoading(true);
         try {
+            const user = JSON.parse(localStorage.getItem('user'));
+            const token = user?.token || user?.accessToken;
+            
+            if (!token) {
+                toastr.warning('Please log in again.');
+                navigate('/login');
+                return;
+            }
+
             const response = await fetch(`http://localhost:5000/api/applications/${applicationStatus.applicationId}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.token}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            // Check content type
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                if (response.status === 401) {
+                    toastr.error('Session expired. Please log in again.');
+                    localStorage.removeItem('user');
+                    navigate('/login');
+                    return;
+                }
+                throw new Error(`Server returned ${response.status}. Please try again later.`);
+            }
+
             if (!response.ok) {
                 const data = await response.json();
                 throw new Error(data.message || 'Failed to withdraw application.');
             }
+            
             toastr.info('Application withdrawn.');
             setApplicationStatus({ hasApplied: false, applicationId: null, testCompleted: false, questionExist: false });
         } catch (err) {
-            toastr.error(err.message || 'An error occurred while withdrawing.');
             console.error('Error withdrawing application:', err);
+            
+            if (err.name === 'SyntaxError' && err.message.includes('JSON')) {
+                toastr.error('Server error. Please try again later.');
+            } else {
+                toastr.error(err.message || 'An error occurred while withdrawing.');
+            }
         } finally {
             setIsActionLoading(false);
         }
     };
 
-    const handleFavoriteJob = () => {
-        if (!userIsLoggedIn) {
-            toastr.warning('Please log in to save jobs.');
-            return;
+    const handleFavoriteToggle = (jobId, isFavorite, remainingFavorites) => {
+        setIsSaved(isFavorite);
+    };
+
+    const handleAuthRequired = () => {
+        navigate('/login');
+    };
+
+    const handleLimitReached = (errorData) => {
+        const shouldUpgrade = window.confirm(`${errorData.message}\n\nWould you like to upgrade now?`);
+        if (shouldUpgrade) {
+            navigate('/packages');
         }
-        setIsSaved(!isSaved);
-        toastr.success(isSaved ? 'Job removed from favorites!' : 'Job saved to favorites!');
     };
 
     const handleShareJob = () => {
@@ -315,7 +451,7 @@ const JobDetail = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pt-28">
             <Header />
             
             <div className="container mx-auto px-4 py-8">
@@ -408,17 +544,16 @@ const JobDetail = () => {
                             <div className="flex-1">
                                 {renderActionButtons()}
                             </div>
-                            <button
-                                onClick={handleFavoriteJob}
-                                className={`px-6 py-4 rounded-2xl border-2 transition-all flex items-center justify-center font-semibold ${
-                                    isSaved 
-                                        ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' 
-                                        : 'bg-white border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500'
-                                }`}
-                            >
-                                <FiHeart className={`mr-2 ${isSaved ? 'fill-current' : ''}`} />
-                                <span className="hidden sm:inline">{isSaved ? 'Saved' : 'Save'}</span>
-                            </button>
+                            <FavoriteButton
+                                jobId={job._id}
+                                isFavorite={isSaved}
+                                onToggle={handleFavoriteToggle}
+                                onAuthRequired={handleAuthRequired}
+                                onLimitReached={handleLimitReached}
+                                variant="button"
+                                size="lg"
+                                showTooltip={false}
+                            />
                             <button
                                 onClick={handleShareJob}
                                 className="px-6 py-4 bg-white border-2 border-gray-200 text-gray-600 rounded-2xl hover:border-blue-300 hover:text-blue-500 transition-all flex items-center justify-center font-semibold"

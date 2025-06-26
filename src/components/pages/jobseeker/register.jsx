@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import OTPVerificationModal from "../../layout/otpchecker";
 import mainImage from '../../../assets/3dimage.png';
 import logoGoogle from '../../../assets/google.svg';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiLock, FiEye, FiEyeOff } from 'react-icons/fi';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ const Register = () => {
     const navigate = useNavigate();
     const [showOtpModal, setShowOtpModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
 
     const handleRegister = async () => {
@@ -117,136 +119,105 @@ const Register = () => {
     
                         {/* Form Fields */}
                         <div className="space-y-6">
+                            {/* First & Last Name */}
                             <div className="flex gap-4">
                                 <div className="relative w-1/2">
+                                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
                                         name="firstname"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.firstname}
                                         onChange={(e) => setFormData({ ...formData, firstname: e.target.value })}
-                                        placeholder=" "
+                                        placeholder="First Name"
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        First Name
-                                    </label>
                                 </div>
                                 <div className="relative w-1/2">
+                                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
                                         name="lastname"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.lastname}
                                         onChange={(e) => setFormData({ ...formData, lastname: e.target.value })}
-                                        placeholder=" "
+                                        placeholder="Last Name"
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        Last Name
-                                    </label>
                                 </div>
                             </div>
 
                             <div className="flex gap-4">
                                 <div className="relative w-1/2">
+                                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="text"
                                         name="username"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.username}
                                         onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                        placeholder=" "
+                                        placeholder="Username"
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        Username
-                                    </label>
                                 </div>
                                 <div className="relative w-1/2">
+                                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="email"
                                         name="email"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder=" "
+                                        placeholder="Email"
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        Email
-                                    </label>
                                 </div>
                             </div>
 
                             <div className="flex gap-4">
                                 <div className="relative w-1/2">
+                                    <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="tel"
                                         name="phone"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        placeholder=" "
+                                        placeholder="Phone Number"
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        Phone Number
-                                    </label>
                                 </div>
                                 <div className="relative w-1/2">
+                                    <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                     <input
                                         type="date"
                                         name="dateOfBirth"
-                                        className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                        className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                         value={formData.dateOfBirth}
                                         onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                                        placeholder=" "
                                     />
-                                    <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                        Date of Birth
-                                    </label>
                                 </div>
                             </div>
     
+                            {/* Password */}
                             <div className="relative">
+                                <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
-                                    type="password"
+                                    type={showPassword ? 'text' : 'password'}
                                     name="password"
-                                    className="p-3 pt-5 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                    className="pl-10 pr-10 py-3 w-full border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
                                     value={formData.password}
                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                    placeholder=" "
+                                    placeholder="Password"
                                 />
-                                <label className="absolute top-3 left-3 text-gray-600 text-xs transition-all transform -translate-y-2 scale-75 origin-left bg-white px-1 pointer-events-none">
-                                    Password
-                                </label>
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 focus:outline-none">
+                                    {showPassword ? <FiEyeOff /> : <FiEye />}
+                                </button>
                             </div>
                         </div>
     
                         {/* Register Button */}
                         <button
-                            className="w-full mt-8 p-3 bg-yellow-400 text-white font-medium rounded-md shadow-md hover:bg-yellow-500 transition"
+                            className="w-full mt-8 p-3 bg-yellow-400 text-white font-medium rounded-md shadow-md hover:bg-yellow-500 transition flex items-center justify-center"
                             onClick={handleRegister}
                             disabled={isLoading}
                         >
-                            {isLoading ? (
-                                <svg
-                                    className="animate-spin h-5 w-5 mr-3"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle
-                                        className="opacity-25"
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        stroke="currentColor"
-                                        strokeWidth="4"
-                                        fill="none"
-                                    />
-                                    <path
-                                        className="opacity-75"
-                                        fill="currentColor"
-                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                    />
-                                </svg>
-                            ) : null}
-                            {isLoading ? "Registering..." : "Register"}
+                            <span>{isLoading ? "Registering..." : "Register"}</span>
                         </button>
     
                         {/* Error Message */}
