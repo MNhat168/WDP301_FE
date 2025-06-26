@@ -32,7 +32,7 @@ const Login = () => {
       }
   
       login(user);
-      
+      localStorage.setItem("accessToken", user.accessToken);
       if (user.userData.roleId && user.userData.roleId.roleName === 'ROLE_JOBSEEKER') {
         navigate("/home");
       } else {

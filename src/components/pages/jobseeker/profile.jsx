@@ -606,7 +606,6 @@ const Profile = () => {
                                     </div>
                                 </div>
 
-                                {/* Tab Content */}
                                 {renderTabContent()}
                             </div>
                         </div>

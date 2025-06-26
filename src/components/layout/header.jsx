@@ -237,7 +237,7 @@ const Header = () => {
   return (
     <>
       <style>{customStyles}</style>
-      <Navbar bg="white" expand="lg" className="shadow-sm fixed-top" style={{ zIndex: 1030 }}>
+      <Navbar bg="dark-blue" expand="lg" className="shadow-sm sticky-top mb-3" style={{zIndex: 1030}}>
         <Container>
           <Navbar.Brand as={Link} to="/">
             <img
@@ -278,6 +278,12 @@ const Header = () => {
                         My Profile
                       </div>
                     </NavDropdown.Item>
+                     <NavDropdown.Item as={Link} to="/cvprofile">
+                      <div className="flex items-center">
+                        <FiUser className="mr-2"/>
+                        CV Profile
+                      </div>
+                    </NavDropdown.Item>
                     <NavDropdown.Item as={Link} to="/application">
                       <div className="flex items-center">
                         <FiBarChart className="mr-2"/>
@@ -308,12 +314,12 @@ const Header = () => {
                 <>
                   <Nav.Link as={Link} to="/login" className="btn btn-outline-primary me-2">
                     <div className="flex items-center">
-                      Login
+                      Find a Job
                     </div>
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/register" className="btn btn-primary text-white">
+                  <Nav.Link as={Link} to="/loginemployeer" className="btn btn-primary text-white">
                     <div className="flex items-center">
-                      Sign Up
+                      Post a Job
                     </div>
                   </Nav.Link>
                 </>
