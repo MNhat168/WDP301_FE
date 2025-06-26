@@ -20,7 +20,7 @@ const HomeAdmin = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/user/current', {
+        const response = await axios.get('http://localhost:5000/api/user/current', {
           withCredentials: true
         });
         if (!response.data || response.data.role?.roleId !== 1) {
@@ -34,13 +34,13 @@ const HomeAdmin = () => {
     const fetchData = async () => {
       try {
         const [statsResponse, monthlyResponse, topJobsResponse] = await Promise.all([
-          axios.get('http://localhost:8080/admin/dashboard/stats', { 
+          axios.get('http://localhost:5000/api/admin/dashboard/stats', { 
             withCredentials: true 
           }),
-          axios.get('http://localhost:8080/admin/dashboard/monthly-jobs', { 
+          axios.get('http://localhost:5000/api/admin/dashboard/monthly-jobs', { 
             withCredentials: true 
           }),
-          axios.get('http://localhost:8080/admin/dashboard/top-jobs', { 
+          axios.get('http://localhost:5000/api/admin/dashboard/top-jobs', { 
             withCredentials: true 
           })
         ]);

@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
-// import toastr from 'toastr';
-// import 'toastr/build/toastr.min.css';
 import useBanCheck from '../admin/checkban';
 
 const Profile = () => {
     const BanPopup = useBanCheck();
     const navigate = useNavigate();
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('profile');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [showOtpInput, setShowOtpInput] = useState(false);
     const [profile, setProfile] = useState({
         firstName: '',
         lastName: '',
@@ -19,7 +19,15 @@ const Profile = () => {
         dateOfBirth: '',
         username: ''
     });
+    const [passwordData, setPasswordData] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        otp: ''
+    });
     const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
     const API_BASE_URL = 'http://localhost:5000/api/user'
 
@@ -73,8 +81,10 @@ const Profile = () => {
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handleProfileSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        
         try {
             const user = JSON.parse(localStorage.getItem("user"));
             const formattedProfile = {
@@ -98,16 +108,101 @@ const Profile = () => {
 
             if (response.status === 200) {
                 setShowSuccessModal(true);
+                setMessage('Profile updated successfully');
                 setTimeout(() => {
                     setShowSuccessModal(false);
+                    setMessage('');
                 }, 3000);
             } else {
                 const errorData = await response.json();
-                alert(errorData.message || 'Failed to update profile');
+                setError(errorData.message || 'Failed to update profile');
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-            alert('Failed to update profile');
+            setError('Failed to update profile');
+        }
+    };
+
+    // Step 1: Send OTP for password change
+    const requestPasswordOtp = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/forgotpassword`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: profile.email })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setShowOtpInput(true);
+                setMessage('OTP sent to your email. Please check your inbox.');
+                setTimeout(() => setMessage(''), 5000);
+            } else {
+                setPasswordError(data.message || 'Failed to send OTP');
+            }
+        } catch (error) {
+            console.error('Error requesting OTP:', error);
+            setPasswordError('Failed to send OTP');
+        }
+    };
+
+    // Step 2: Verify OTP and change password
+    const handlePasswordSubmit = async (e) => {
+        e.preventDefault();
+        setPasswordError('');
+        if (passwordData.newPassword !== passwordData.confirmPassword) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+
+        if (!showOtpInput) {
+            // First step: Request OTP
+            await requestPasswordOtp();
+            return;
+        }
+
+        if (!passwordData.otp) {
+            setPasswordError('Please enter the OTP sent to your email');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/verify-forgot-pass/${profile.email}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    otp: passwordData.otp,
+                    newPassword: passwordData.newPassword
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setShowSuccessModal(true);
+                setMessage('Password changed successfully');
+                setPasswordData({
+                    currentPassword: '',
+                    newPassword: '',
+                    confirmPassword: '',
+                    otp: ''
+                });
+                setShowOtpInput(false);
+                setTimeout(() => {
+                    setShowSuccessModal(false);
+                    setMessage('');
+                }, 3000);
+            } else {
+                setPasswordError(data.message || 'Failed to change password');
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            setPasswordError('An error occurred while changing password');
         }
     };
 
@@ -119,211 +214,399 @@ const Profile = () => {
         }));
     };
 
+    const handlePasswordChange = (e) => {
+        const { name, value } = e.target;
+        setPasswordData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const renderTabContent = () => {
+        switch (activeTab) {
+            case 'profile':
+                return (
+                    <form onSubmit={handleProfileSubmit} className="divide-y divide-gray-200">
+                        {/* Profile Picture Section */}
+                        <div className="px-6 py-5">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0">
+                                    <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center">
+                                        <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div className="ml-5 flex-1">
+                                    <div className="flex items-center space-x-3">
+                                        <h3 className="text-lg font-medium text-gray-900">
+                                            {profile.firstName} {profile.lastName}
+                                        </h3>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            @{profile.username}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">{profile.email}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Personal Information */}
+                        <div className="px-6 py-5">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Personal information</h3>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        First name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="firstName"
+                                        value={profile.firstName}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Last name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="lastName"
+                                        value={profile.lastName}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email address
+                                </label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={profile.email}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 text-sm"
+                                    readOnly
+                                />
+                                <p className="text-xs text-gray-500 mt-1">Your email address cannot be changed.</p>
+                            </div>
+                        </div>
+
+                        {/* Contact Information */}
+                        <div className="px-6 py-5">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Contact information</h3>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        City/Province
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={profile.city}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Enter your city"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Phone number
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="phoneNumber"
+                                        value={profile.phoneNumber}
+                                        onChange={handleInputChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Enter your phone number"
+                                        pattern="\d+"
+                                        title="Please enter a valid phone number (digits only)"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="mt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Date of birth
+                                </label>
+                                <input
+                                    type="date"
+                                    name="dateOfBirth"
+                                    value={profile.dateOfBirth || ''}
+                                    onChange={handleInputChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm max-w-xs"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+                            <button
+                                type="button"
+                                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            >
+                                Update profile
+                            </button>
+                        </div>
+                    </form>
+                );
+
+            case 'account':
+                return (
+                    <div className="px-6 py-5">
+                        <h3 className="text-lg font-medium text-gray-900 mb-6">Change Password</h3>
+                        
+                        {passwordError && (
+                            <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-md">
+                                {passwordError}
+                            </div>
+                        )}
+
+                        {message && (
+                            <div className="p-4 mb-4 text-green-700 bg-green-100 rounded-md">
+                                {message}
+                            </div>
+                        )}
+
+                        <form onSubmit={handlePasswordSubmit} className="space-y-6">
+                            {!showOtpInput && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
+                                    <div className="flex">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-sm text-blue-700">
+                                                To change your password, we'll send a verification code to your email address.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    New Password
+                                </label>
+                                <input
+                                    type="password"
+                                    name="newPassword"
+                                    value={passwordData.newPassword}
+                                    onChange={handlePasswordChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Enter new password"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Confirm New Password
+                                </label>
+                                <input
+                                    type="password"
+                                    name="confirmPassword"
+                                    value={passwordData.confirmPassword}
+                                    onChange={handlePasswordChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                    placeholder="Confirm new password"
+                                    required
+                                />
+                            </div>
+
+                            {showOtpInput && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Verification Code (OTP)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="otp"
+                                        value={passwordData.otp}
+                                        onChange={handlePasswordChange}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="Enter the 6-digit code from your email"
+                                        maxLength="6"
+                                        required
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">Check your email for the verification code.</p>
+                                </div>
+                            )}
+
+                            <div className="pt-4 flex space-x-3">
+                                {showOtpInput && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowOtpInput(false);
+                                            setPasswordData(prev => ({ ...prev, otp: '' }));
+                                            setPasswordError('');
+                                        }}
+                                        className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                    >
+                                        Back
+                                    </button>
+                                )}
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                >
+                                    {showOtpInput ? 'Change Password' : 'Send Verification Code'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                );
+
+            default:
+                return <div className="px-6 py-5">Coming soon...</div>;
+        }
+    };
+
     return (
         <>
             {BanPopup}
             <Header />
             {showSuccessModal && (
                 <div className="fixed inset-0 flex items-center justify-center z-50">
-                    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm"></div>
-                    <div className="bg-white rounded-2xl p-8 z-50 relative shadow-2xl transform transition-all duration-300 scale-105">
-                        <div className="flex items-center justify-center mb-6">
-                            <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
-                                <svg
-                                    className="w-10 h-10 text-white"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M5 13l4 4L19 7"
-                                    />
+                    <div className="fixed inset-0 bg-black bg-opacity-25"></div>
+                    <div className="bg-white rounded-lg p-6 z-50 relative shadow-lg border max-w-sm w-full mx-4">
+                        <div className="flex items-center mb-4">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                             </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Success!</h3>
                         </div>
-                        <h3 className="text-2xl font-bold text-center mb-3 text-gray-800">Success!</h3>
-                        <p className="text-gray-600 text-center mb-6">Your profile has been updated successfully.</p>
+                        <p className="text-gray-600 text-sm mb-4">{message}</p>
                         <button
                             onClick={() => setShowSuccessModal(false)}
-                            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg"
+                            className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
                         >
-                            Close
+                            Dismiss
                         </button>
                     </div>
                 </div>
             )}
             
-            {/* Background with gradient */}
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-                <div className="container mx-auto pt-32 pb-12 px-4">
-                    <div className="max-w-6xl mx-auto">
-                        {/* Header Section */}
-                        <div className="text-center mb-12">
-                            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-                                Profile Settings
-                            </h1>
-                            <p className="text-gray-600 text-lg">Manage your personal information and account settings</p>
+            <div className="min-h-screen bg-gray-50">
+                <div className="max-w-5xl mx-auto pt-8 pb-12 px-4">
+                    {/* Navigation breadcrumb */}
+                    <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
+                        <span>Settings</span>
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="font-medium text-gray-900">Edit Profile</span>
+                    </nav>
+
+                    <div className="grid grid-cols-12 gap-6">
+                        {/* Sidebar Navigation */}
+                        <div className="col-span-12 lg:col-span-3">
+                            <div className="bg-white border border-gray-200 rounded-lg">
+                                <div className="p-4 border-b border-gray-200">
+                                    <h2 className="font-semibold text-gray-900">Settings</h2>
+                                </div>
+                                <nav className="p-2">
+                                    <button 
+                                        onClick={() => setActiveTab('profile')}
+                                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md mb-1 ${
+                                            activeTab === 'profile' 
+                                                ? 'text-gray-900 bg-gray-50' 
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                        Profile
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveTab('account')}
+                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md mb-1 ${
+                                            activeTab === 'account' 
+                                                ? 'text-gray-900 bg-gray-50 font-medium' 
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                                        </svg>
+                                        Account
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveTab('security')}
+                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md mb-1 ${
+                                            activeTab === 'security' 
+                                                ? 'text-gray-900 bg-gray-50 font-medium' 
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                        </svg>
+                                        Security
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveTab('notifications')}
+                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                                            activeTab === 'notifications' 
+                                                ? 'text-gray-900 bg-gray-50 font-medium' 
+                                                : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" />
+                                        </svg>
+                                        Notifications
+                                    </button>
+                                </nav>
+                            </div>
                         </div>
 
-                        {/* Main Profile Card */}
-                        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                            {/* Header with gradient */}
-                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-8">
-                                <div className="flex items-center space-x-6">
-                                    <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                        <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-white">
-                                            {profile.firstName} {profile.lastName}
-                                        </h2>
-                                        <p className="text-blue-100">@{profile.username}</p>
-                                        <p className="text-blue-100">{profile.email}</p>
+                        {/* Main Content */}
+                        <div className="col-span-12 lg:col-span-9">
+                            <div className="bg-white border border-gray-200 rounded-lg">
+                                {/* Header */}
+                                <div className="px-6 py-4 border-b border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h1 className="text-xl font-semibold text-gray-900">
+                                                {activeTab === 'profile' && 'Public profile'}
+                                                {activeTab === 'account' && 'Account Settings'}
+                                                {activeTab === 'security' && 'Security Settings'}
+                                                {activeTab === 'notifications' && 'Notification Settings'}
+                                            </h1>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                {activeTab === 'profile' && 'This information will be displayed publicly so be careful what you share.'}
+                                                {activeTab === 'account' && 'Manage your account settings and change your password.'}
+                                                {activeTab === 'security' && 'Configure your security preferences.'}
+                                                {activeTab === 'notifications' && 'Manage your notification preferences.'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Form Content */}
-                            <div className="p-8">
-                                <form onSubmit={handleSubmit} className="space-y-8">
-                                    <div className="grid lg:grid-cols-2 gap-8">
-                                        {/* Personal Information Card */}
-                                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-                                            <div className="flex items-center mb-6">
-                                                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mr-4">
-                                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-bold text-gray-800">Personal Information</h3>
-                                                    <p className="text-gray-600">Your basic profile details</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
-                                                        <input
-                                                            type="text"
-                                                            name="firstName"
-                                                            value={profile.firstName}
-                                                            onChange={handleInputChange}
-                                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all duration-300 bg-white shadow-sm"
-                                                            required
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
-                                                        <input
-                                                            type="text"
-                                                            name="lastName"
-                                                            value={profile.lastName}
-                                                            onChange={handleInputChange}
-                                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all duration-300 bg-white shadow-sm"
-                                                            required
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                                                    <input
-                                                        type="email"
-                                                        name="email"
-                                                        value={profile.email}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed shadow-sm"
-                                                        readOnly
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Account Settings Card */}
-                                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
-                                            <div className="flex items-center mb-6">
-                                                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mr-4">
-                                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
-                                                    </svg>
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-xl font-bold text-gray-800">Account Settings</h3>
-                                                    <p className="text-gray-600">Contact and location details</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">City/Province</label>
-                                                    <input
-                                                        type="text"
-                                                        name="city"
-                                                        value={profile.city}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-50 transition-all duration-300 bg-white shadow-sm"
-                                                        placeholder="Enter your city"
-                                                        required
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                                                    <input
-                                                        type="text"
-                                                        name="phoneNumber"
-                                                        value={profile.phoneNumber}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-50 transition-all duration-300 bg-white shadow-sm"
-                                                        placeholder="Enter your phone number"
-                                                        pattern="\d+"
-                                                        title="Please enter a valid phone number (digits only)"
-                                                        required
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Birth</label>
-                                                    <input
-                                                        type="date"
-                                                        name="dateOfBirth"
-                                                        value={profile.dateOfBirth || ''}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-50 transition-all duration-300 bg-white shadow-sm"
-                                                        required
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Save Button */}
-                                    <div className="flex justify-center pt-8">
-                                        <button
-                                            type="submit"
-                                            className="px-12 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold rounded-2xl hover:from-blue-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
-                                        >
-                                            <div className="flex items-center space-x-2">
-                                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-                                                </svg>
-                                                <span>Save Changes</span>
-                                            </div>
-                                        </button>
-                                    </div>
-
-                                    {message && (
-                                        <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 rounded-xl text-center font-medium">
-                                            {message}
-                                        </div>
-                                    )}
-                                </form>
+                                {renderTabContent()}
                             </div>
                         </div>
                     </div>

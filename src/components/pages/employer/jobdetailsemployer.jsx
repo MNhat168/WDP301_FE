@@ -306,15 +306,6 @@ const JobDetailsEmployer = () => {
                       </p>
                     </div>
                   </div>
-
-                  <div className="group">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Applications</label>
-                    <div className="mt-2 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-                      <p className="text-lg font-bold text-purple-700">
-                        {jobDetails?.applicantCount} Applications
-                      </p>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="space-y-6">
@@ -345,10 +336,10 @@ const JobDetailsEmployer = () => {
                   </div>
 
                   <div className="group">
-                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Start Date</label>
+                    <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">End Date</label>
                     <div className="mt-2 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
                       <p className="text-lg font-semibold text-gray-800">
-                        {new Date(jobDetails?.startDate).toLocaleDateString('en-US', {
+                        {new Date(jobDetails?.endDate).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric'
@@ -427,7 +418,7 @@ const JobDetailsEmployer = () => {
                 </div>
                 
                 <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg">
-                  <span className="text-gray-700 font-medium">Applications</span>
+                  <span className="text-gray-700 font-medium">Remaining Applications Count</span>
                   <span className="font-bold text-green-700">{jobDetails?.applicantCount}</span>
                 </div>
                 

@@ -19,7 +19,7 @@ const AdminSidebar = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:8080/user/current', {
+        const response = await axios.get('http://localhost:5000/api/user/current', {
           withCredentials: true
         });
         if (!response.data || response.data.role?.roleId !== 1) {
@@ -29,25 +29,6 @@ const AdminSidebar = () => {
         navigate('/login');
       }
     };
-
-    // const fetchData = async () => {
-    //   try {
-    //     // Add your API endpoints here
-    //     const [statsResponse, topJobsResponse, statisticsResponse] = await Promise.all([
-    //       axios.get('http://localhost:8080/admin/stats', { withCredentials: true }),
-    //       axios.get('http://localhost:8080/admin/top-jobs', { withCredentials: true }),
-    //       axios.get('http://localhost:8080/admin/job-statistics', { withCredentials: true })
-    //     ]);
-
-    //     setStats({
-    //       ...statsResponse.data,
-    //       topJobs: topJobsResponse.data,
-    //       jobStatistics: statisticsResponse.data
-    //     });
-    //   } catch (error) {
-    //     console.error('Error fetching data:', error);
-    //   }
-    // };
 
     checkAuth();
     // fetchData();

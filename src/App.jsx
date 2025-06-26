@@ -25,15 +25,10 @@ import CompanyDetail from "./components/pages/employer/companydetail";
 import EditProfileCompany from "./components/pages/employer/editprofilecompany";
 import ListJobCreate from "./components/pages/employer/listjobcreate";
 import CreateJob from "./components/pages/employer/createjob";
-import BlogDetail from "./components/pages/employer/blogdetailemp";
-import BlogForm from "./components/pages/employer/blogform";
-import BlogList from "./components/pages/employer/bloglistemp";
 import JobDetailsEmployer from "./components/pages/employer/jobdetailsemployer";
 import EditJob from "./components/pages/employer/editjob";
 import CreateSkillTest from "./components/pages/employer/createskilltest";
 import ListQuestion from "./components/pages/employer/listquestion";
-import JobSeekerBlogList from "./components/pages/jobseeker/bloglistjobs";
-import JobSeekerBlogDetail from "./components/pages/jobseeker/blogdetailjobs";
 import AdminNotifications from "./components/pages/admin/adminnoti";
 import UserDetail from "./components/pages/admin/userdetailad";
 import ApproveCv from "./components/pages/employer/approveCv";
@@ -82,12 +77,6 @@ const App = () => {
           <Route path="/edit-job/:jobId" element={<EditJob />} />
           <Route path="/questions/loadskilltest/:jobId" element={<CreateSkillTest />} />
           <Route path="/questions/view/:jobId" element={<ListQuestion />} />
-          <Route path="/employer/blogs" element={<BlogList />} />
-          <Route path="/employer/blogs/:blogId" element={<BlogDetail />} />
-          <Route path="/employer/create-blog" element={<BlogForm />} />
-          <Route path="/employer/edit-blog/:blogId" element={<BlogForm />} />
-          <Route path="/blogs" element={<JobSeekerBlogList />} />
-          <Route path="/blogs/:blogId" element={<JobSeekerBlogDetail />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/users/:userId" component={UserDetail} />
           <Route path="/listApplyCv" element={<ApproveCv />} />

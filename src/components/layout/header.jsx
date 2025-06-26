@@ -82,7 +82,7 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    navigate("/");
   };
 
   // Get user token
@@ -237,11 +237,11 @@ const Header = () => {
   return (
     <>
       <style>{customStyles}</style>
-      <Navbar bg="white" expand="lg" className="shadow-sm fixed-top" style={{ zIndex: 1030 }}>
+      <Navbar bg="dark-blue" expand="lg" className="shadow-sm sticky-top mb-3" style={{zIndex: 1030}}>
         <Container>
           <Navbar.Brand as={Link} to="/">
             <img
-              src="/logo.png"
+              src="/images/easyjobb.png"
               width="40"
               height="40"
               className="d-inline-block align-top"
@@ -254,7 +254,6 @@ const Header = () => {
               <Nav.Link as={Link} to="/home">Home</Nav.Link>
               <Nav.Link as={Link} to="/jobsearch">Find Jobs</Nav.Link>
               <Nav.Link as={Link} to="/companies">Companies</Nav.Link>
-              <Nav.Link as={Link} to="/blogs">Blogs</Nav.Link>
             </Nav>
             <Nav className="align-items-center">
               {user ? (
@@ -279,6 +278,12 @@ const Header = () => {
                         My Profile
                       </div>
                     </NavDropdown.Item>
+                     <NavDropdown.Item as={Link} to="/cvprofile">
+                      <div className="flex items-center">
+                        <FiUser className="mr-2"/>
+                        CV Profile
+                      </div>
+                    </NavDropdown.Item>
                     <NavDropdown.Item as={Link} to="/application">
                       <div className="flex items-center">
                         <FiBarChart className="mr-2"/>
@@ -297,12 +302,6 @@ const Header = () => {
                         Subscription
                       </div>
                     </NavDropdown.Item>
-                    <NavDropdown.Item as={Link} to="/changepass">
-                      <div className="flex items-center">
-                        <FiSettings className="mr-2"/>
-                        Settings
-                      </div>
-                    </NavDropdown.Item>
                     <NavDropdown.Divider />
                     <NavDropdown.Item onClick={handleLogout}>
                       <div className="flex items-center">
@@ -315,12 +314,12 @@ const Header = () => {
                 <>
                   <Nav.Link as={Link} to="/login" className="btn btn-outline-primary me-2">
                     <div className="flex items-center">
-                      Login
+                      Find a Job
                     </div>
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/register" className="btn btn-primary text-white">
+                  <Nav.Link as={Link} to="/loginemployeer" className="btn btn-primary text-white">
                     <div className="flex items-center">
-                      Sign Up
+                      Post a Job
                     </div>
                   </Nav.Link>
                 </>
