@@ -1,20 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
+import { useSubscriptionData } from '../../../hooks/useSubscription.jsx';
+import SubscriptionBadge from '../../common/SubscriptionBadge';
+import UsageMeter from '../../common/UsageMeter';
+import UpgradeModal from '../../common/UpgradeModal';
 import { 
     FiStar, FiBarChart, FiCalendar, FiCreditCard, FiSettings,
     FiTrendingUp, FiCheck, FiX, FiAlertCircle, FiRefreshCw,
-    FiDownload, FiEye, FiEdit3, FiTrash2, FiZap
+    FiDownload, FiEye, FiEdit3, FiTrash2, FiZap, FiAward
 } from 'react-icons/fi';
 import toastr from 'toastr';
 
 const SubscriptionManagement = () => {
     const navigate = useNavigate();
-    const [subscription, setSubscription] = useState(null);
-    const [usageStats, setUsageStats] = useState(null);
+    
+    // Use new subscription hook
+    const {
+        subscriptionData,
+        loading: subscriptionLoading,
+        error: subscriptionError,
+        refreshData,
+        currentTier,
+        applicationUsage,
+        tierInfo
+    } = useSubscriptionData();
+
+    // Legacy state for features not in new system
     const [billingHistory, setBillingHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
 
     const getUserToken = () => {
@@ -22,9 +38,9 @@ const SubscriptionManagement = () => {
         return user?.token;
     };
 
-    // Fetch subscription data
+    // Fetch additional data not covered by subscription hook
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchAdditionalData = async () => {
             const token = getUserToken();
             if (!token) {
                 navigate('/login');
@@ -32,42 +48,27 @@ const SubscriptionManagement = () => {
             }
 
             try {
-                const [subResponse, usageResponse, billingResponse] = await Promise.all([
-                    fetch('http://localhost:5000/api/subscriptions/current', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }),
-                    fetch('http://localhost:5000/api/subscriptions/usage-stats', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }),
-                    fetch('http://localhost:5000/api/subscriptions/billing-history', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    })
-                ]);
-
-                if (subResponse.ok) {
-                    const subData = await subResponse.json();
-                    setSubscription(subData.result);
-                }
-
-                if (usageResponse.ok) {
-                    const usageData = await usageResponse.json();
-                    setUsageStats(usageData.result);
-                }
+                // Fetch billing history (not in new subscription system yet)
+                const billingResponse = await fetch('http://localhost:5000/api/subscriptions/billing-history', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
                 if (billingResponse.ok) {
                     const billingData = await billingResponse.json();
                     setBillingHistory(billingData.result || []);
                 }
             } catch (error) {
-                console.error('Error fetching data:', error);
-                toastr.error('Failed to load subscription data');
+                console.error('Error fetching additional data:', error);
+                // Don't show error toast for billing history as it's optional
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchData();
-    }, [navigate]);
+        if (!subscriptionLoading) {
+            fetchAdditionalData();
+        }
+    }, [navigate, subscriptionLoading]);
 
     const handleCancelSubscription = async () => {
         setIsCancelling(true);
@@ -86,8 +87,8 @@ const SubscriptionManagement = () => {
             if (response.ok && data.status) {
                 toastr.success('Subscription cancelled successfully');
                 setShowCancelModal(false);
-                // Refresh data
-                window.location.reload();
+                // Refresh subscription data
+                refreshData();
             } else {
                 throw new Error(data.message || 'Failed to cancel subscription');
             }
@@ -97,6 +98,13 @@ const SubscriptionManagement = () => {
         } finally {
             setIsCancelling(false);
         }
+    };
+
+    const handleUpgrade = (targetTier) => {
+        setShowUpgradeModal(false);
+        // Navigate to packages page or handle upgrade
+        navigate('/packages');
+        console.log(`Upgrading to ${targetTier}`);
     };
 
     const CancelModal = () => (
@@ -137,41 +145,7 @@ const SubscriptionManagement = () => {
         </div>
     );
 
-    const UsageCard = ({ title, used, limit, icon, color }) => {
-        const percentage = limit === -1 ? 20 : Math.min((used / limit) * 100, 100);
-        const isNearLimit = limit !== -1 && percentage >= 80;
-
-        return (
-            <div className={`bg-gradient-to-br from-${color}-50 to-${color}-100 border border-${color}-200 rounded-2xl p-6`}>
-                <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 bg-${color}-500 rounded-xl text-white`}>
-                        {icon}
-                    </div>
-                    {isNearLimit && (
-                        <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-semibold">
-                            Near Limit
-                        </div>
-                    )}
-                </div>
-                <h3 className="font-semibold text-gray-800 mb-2">{title}</h3>
-                <div className="text-3xl font-bold text-gray-800 mb-2">
-                    {used}
-                    {limit !== -1 && <span className="text-lg text-gray-500">/{limit}</span>}
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                        className={`bg-${color}-500 h-2 rounded-full transition-all duration-300`}
-                        style={{ width: `${percentage}%` }}
-                    ></div>
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                    {limit === -1 ? 'Unlimited' : `${limit - used} remaining this month`}
-                </p>
-            </div>
-        );
-    };
-
-    if (isLoading) {
+    if (subscriptionLoading || isLoading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
                 <Header />
@@ -193,9 +167,34 @@ const SubscriptionManagement = () => {
         );
     }
 
-    const isFreePlan = !subscription || subscription.planId?.name === 'Free';
-    const isTrial = subscription?.status === 'trial';
-    const planName = subscription?.planId?.name || 'Free';
+    if (subscriptionError) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+                <Header />
+                <div className="container mx-auto px-4 py-8 mt-20">
+                    <div className="bg-white rounded-3xl shadow-xl p-8 text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FiAlertCircle className="text-red-500 text-2xl"/>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Subscription Data</h3>
+                        <p className="text-gray-600 mb-4">{subscriptionError}</p>
+                        <button
+                            onClick={refreshData}
+                            className="bg-blue-500 text-white px-6 py-3 rounded-xl hover:bg-blue-600 transition-colors font-semibold"
+                        >
+                            <FiRefreshCw className="mr-2 inline"/>
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const isFreePlan = currentTier === 'free';
+    const subscription = subscriptionData?.subscription;
+    const isActive = subscription?.isActive;
+    const isTrial = subscription?.type === 'trial';
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -228,35 +227,40 @@ const SubscriptionManagement = () => {
                                     {isFreePlan ? (
                                         <FiSettings className="text-gray-600 text-xl"/>
                                     ) : (
-                                        <FiStar className="text-white text-xl"/>
+                                        <FiAward className="text-white text-xl"/>
                                     )}
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-800">
-                                        {planName} Plan
-                                        {isTrial && <span className="ml-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">Trial</span>}
-                                    </h2>
+                                    <div className="flex items-center mb-2">
+                                        <h2 className="text-2xl font-bold text-gray-800 mr-3">
+                                            {tierInfo.name} Plan
+                                        </h2>
+                                        <SubscriptionBadge tier={currentTier} size="md" />
+                                        {isTrial && (
+                                            <span className="ml-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                                Trial
+                                            </span>
+                                        )}
+                                    </div>
                                     <p className="text-gray-600">
-                                        {subscription?.status === 'active' && 'Active subscription'}
-                                        {subscription?.status === 'trial' && 'Free trial active'}
+                                        {isActive && !isTrial && 'Active subscription'}
+                                        {isTrial && 'Free trial active'}
                                         {subscription?.status === 'cancelled' && 'Cancelled (access until end of period)'}
-                                        {!subscription && 'Free plan with basic features'}
+                                        {isFreePlan && 'Free plan with basic features'}
                                     </p>
                                 </div>
                             </div>
                             
-                            {subscription && (
+                            {subscription && subscription.daysRemaining !== undefined && (
                                 <div className="flex items-center space-x-6 text-sm text-gray-600">
-                                    {subscription.endDate && (
-                                        <div className="flex items-center">
-                                            <FiCalendar className="mr-2"/>
-                                            {subscription.status === 'trial' ? 'Trial ends:' : subscription.status === 'cancelled' ? 'Access until:' : 'Next billing:'} {new Date(subscription.endDate).toLocaleDateString()}
-                                        </div>
-                                    )}
-                                    {subscription.planId?.price > 0 && (
+                                    <div className="flex items-center">
+                                        <FiCalendar className="mr-2"/>
+                                        {isTrial ? 'Trial ends in:' : subscription.status === 'cancelled' ? 'Access until:' : 'Next billing in:'} {subscription.daysRemaining} days
+                                    </div>
+                                    {subscription.expiryDate && (
                                         <div className="flex items-center">
                                             <FiCreditCard className="mr-2"/>
-                                            ${subscription.planId.price}/{subscription.planId.interval}
+                                            Expires: {new Date(subscription.expiryDate).toLocaleDateString()}
                                         </div>
                                     )}
                                 </div>
@@ -274,9 +278,10 @@ const SubscriptionManagement = () => {
                             )}
                             {(isFreePlan || isTrial) && (
                                 <button
-                                    onClick={() => navigate('/packages')}
+                                    onClick={() => setShowUpgradeModal(true)}
                                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all font-semibold"
                                 >
+                                    <FiAward className="mr-2"/>
                                     Upgrade Now
                                 </button>
                             )}
@@ -285,34 +290,58 @@ const SubscriptionManagement = () => {
                 </div>
 
                 {/* Usage Statistics */}
-                {usageStats && (
+                {subscriptionData && (
                     <div className="mb-8">
                         <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
                             <FiBarChart className="mr-3 text-blue-500"/>
                             Usage This Month
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <UsageCard 
-                                title="Job Applications"
-                                used={usageStats.jobApplications?.used || 0}
-                                limit={usageStats.jobApplications?.limit || 5}
-                                icon={<FiTrendingUp />}
-                                color="blue"
-                            />
-                            <UsageCard 
-                                title="Saved Jobs"
-                                used={usageStats.savedJobs?.used || 0}
-                                limit={usageStats.savedJobs?.limit || 10}
-                                icon={<FiCheck />}
-                                color="purple"
-                            />
-                            <UsageCard 
-                                title="Profile Views"
-                                used={usageStats.profileViews || 0}
-                                limit={-1}
-                                icon={<FiEye />}
-                                color="green"
-                            />
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <UsageMeter
+                                    type="applications"
+                                    used={subscriptionData.subscription?.applications?.actual || subscriptionData.applications?.used || 0}
+                                    limit={subscriptionData.applications?.limit || subscriptionData.subscription?.applications?.limit || 5}
+                                    size="md"
+                                />
+                            </div>
+                            
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <UsageMeter
+                                    type="favorites"
+                                    used={subscriptionData.user?.actualCounts?.favoriteJobs || subscriptionData.favorites?.count || 0}
+                                    limit={subscriptionData.favorites?.limit || 10}
+                                    size="md"
+                                />
+                            </div>
+
+                            {subscriptionData.jobPostings && (
+                                <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                    <UsageMeter
+                                        type="jobPostings"
+                                        used={subscriptionData.subscription?.jobPostings?.actual || subscriptionData.jobPostings.used || 0}
+                                        limit={subscriptionData.jobPostings.limit || subscriptionData.subscription?.jobPostings?.limit || 0}
+                                        size="md"
+                                    />
+                                </div>
+                            )}
+
+                            {!subscriptionData.jobPostings && (
+                                <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                    <div className="flex items-center space-x-3 mb-4">
+                                        <div className="p-3 bg-green-500 rounded-xl text-white">
+                                            <FiEye className="h-5 w-5"/>
+                                        </div>
+                                        <h3 className="font-semibold text-gray-800">Profile Views</h3>
+                                    </div>
+                                    <div className="text-3xl font-bold text-gray-800 mb-2">
+                                        {subscriptionData.analytics?.profileViews || subscriptionData.user?.profileViews || 0}
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Total views this month
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -375,7 +404,17 @@ const SubscriptionManagement = () => {
                 </div>
             </div>
 
+            {/* Modals */}
             {showCancelModal && <CancelModal />}
+            
+            <UpgradeModal
+                isOpen={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+                currentTier={currentTier}
+                actionType="subscription"
+                message="Upgrade your plan to access more features and higher limits"
+                onUpgrade={handleUpgrade}
+            />
         </div>
     );
 };
