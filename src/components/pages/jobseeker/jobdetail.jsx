@@ -1,6 +1,8 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from "../../layout/header";
+import FavoriteButton from '../../common/FavoriteButton';
 import toastr from 'toastr';
 import 'toastr/build/toastr.min.css';
 
@@ -135,7 +137,32 @@ const JobDetail = () => {
             }
         };
 
+        const fetchFavoriteStatus = async () => {
+            if (!jobId || !userIsLoggedIn) return;
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                const token = user?.token || user?.accessToken;
+                
+                const response = await fetch(`http://localhost:5000/api/jobs/${jobId}/favorite-status`, {
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status !== undefined) {
+                        setIsSaved(data.status);
+                    }
+                }
+            } catch (err) {
+                console.error("Could not fetch favorite status:", err);
+            }
+        };
+
         fetchApplicationStatus();
+        fetchFavoriteStatus();
     }, [jobId, userIsLoggedIn]);
 
     const handleApplyJob = async () => {
@@ -215,15 +242,6 @@ const JobDetail = () => {
         }
     };
 
-    const handleFavoriteJob = () => {
-        if (!userIsLoggedIn) {
-            toastr.warning('Please log in to save jobs.');
-            return;
-        }
-        setIsSaved(!isSaved);
-        toastr.success(isSaved ? 'Job removed from favorites!' : 'Job saved to favorites!');
-    };
-
     const handleShareJob = () => {
         if (navigator.share) {
             navigator.share({
@@ -239,6 +257,22 @@ const JobDetail = () => {
 
     const handleSkillTestClick = () => {
         navigate("/doskilltest", { state: { jobId: job._id } });
+    };
+
+    // Handlers for FavoriteButton
+    const handleFavoriteToggle = (jobId, newStatus, remainingFavorites) => {
+        setIsSaved(newStatus);
+    };
+
+    const handleAuthRequired = () => {
+        toastr.warning('Please log in to save jobs.');
+        navigate('/login');
+    };
+
+    const handleLimitReached = (errorData) => {
+        toastr.warning('Favorite limit reached. Upgrade to premium for unlimited favorites!');
+        // Could redirect to upgrade page
+        // navigate('/upgrade');
     };
 
     if (loading) return <JobDetailSkeleton />;
@@ -441,15 +475,16 @@ const JobDetail = () => {
                                 <div className="flex-1 max-w-xs">
                                     {renderActionButtons()}
                                 </div>
-                                <button
-                                    onClick={handleFavoriteJob}
-                                    className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${isSaved
-                                        ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-500'
-                                        : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:ring-blue-500'
-                                        }`}
-                                >
-                                    <FiHeart className={`h-4 w-4 ${isSaved ? 'fill-current' : ''}`} />
-                                </button>
+                                <FavoriteButton
+                                    jobId={job._id}
+                                    isFavorite={isSaved}
+                                    onToggle={handleFavoriteToggle}
+                                    onAuthRequired={handleAuthRequired}
+                                    onLimitReached={handleLimitReached}
+                                    variant="icon"
+                                    size="md"
+                                    showTooltip={true}
+                                />
                                 <button
                                     onClick={handleShareJob}
                                     className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
