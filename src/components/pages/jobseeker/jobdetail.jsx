@@ -515,7 +515,7 @@ const JobDetail = () => {
                                         <div>
                                             <p className="text-sm font-medium text-gray-900">Salary</p>
                                             <p className="text-sm text-gray-500">
-                                                {job.salary ? `$${job.salary.toLocaleString()} USD` : 'Not disclosed'}
+                                                {job.salary ? `$${job.minSalary.toLocaleString()} - $${job.maxSalary.toLocaleString()}  USD` : 'Not disclosed'}
                                             </p>
                                         </div>
                                     </div>

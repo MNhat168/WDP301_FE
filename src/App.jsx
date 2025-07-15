@@ -41,6 +41,7 @@ import JobList from "./components/pages/admin/jobmanagement";
 import DoTest from "./components/pages/employer/dotest";
 import SkillTestMark from "./components/pages/employer/skilltestmark";
 import Subscription from "./components/pages/jobseeker/subscription";
+import AdminCompaniesPage from "./components/pages/admin/companiesmanagement";
 import ChatBox from "./components/layout/chatbox";
 
 const App = () => {
@@ -88,6 +89,7 @@ const App = () => {
           <Route path="/admin/jobs" element={<JobList />} />
           <Route path="/doskilltest" element={<DoTest />} />
           <Route path="/skill-test-result" element={<SkillTestMark />} />
+          <Route path="/admin/companies" element={<AdminCompaniesPage />} />
         </Routes>
         <ChatBox />
       </Router>

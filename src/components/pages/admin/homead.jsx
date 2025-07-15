@@ -16,32 +16,42 @@ const HomeAdmin = () => {
     topJobs: [],
     monthlyStats: []
   });
+  const token = localStorage.getItem('accessToken');
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await axios.get('http://localhost:5000/api/user/current', {
+          headers: {
+            Authorization: `Bearer ${token}`  // Add this
+          },
           withCredentials: true
         });
-        if (!response.data || response.data.role?.roleId !== 1) {
-          navigate('/login');
-        }
       } catch (error) {
-        navigate('/login');
+        console.error('Error fetching data:', error);;
       }
     };
 
     const fetchData = async () => {
       try {
         const [statsResponse, monthlyResponse, topJobsResponse] = await Promise.all([
-          axios.get('http://localhost:5000/api/admin/dashboard/stats', { 
-            withCredentials: true 
+          axios.get('http://localhost:5000/api/admin/dashboard/stats', {
+            headers: {
+              Authorization: `Bearer ${token}`  // Add this
+            },
+            withCredentials: true
           }),
-          axios.get('http://localhost:5000/api/admin/dashboard/monthly-jobs', { 
-            withCredentials: true 
+          axios.get('http://localhost:5000/api/admin/dashboard/monthly-jobs', {
+            headers: {
+              Authorization: `Bearer ${token}`  // Add this
+            },
+            withCredentials: true
           }),
-          axios.get('http://localhost:5000/api/admin/dashboard/top-jobs', { 
-            withCredentials: true 
+          axios.get('http://localhost:5000/api/admin/dashboard/top-jobs', {
+            headers: {
+              Authorization: `Bearer ${token}`  // Add this
+            },
+            withCredentials: true
           })
         ]);
 
@@ -56,7 +66,7 @@ const HomeAdmin = () => {
     };
 
     checkAuth();
-    fetchData();
+    // fetchData();
   }, [navigate]);
 
   // Bar Chart Data - using your Statistic model structure

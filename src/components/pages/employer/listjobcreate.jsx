@@ -9,21 +9,29 @@ const ListJobCreate = () => {
   const [error, setError] = useState(null);
   const BanPopup = useBanCheck();
 
+  const getAuthToken = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    return user?.accessToken || "";
+  };
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("http://localhost:5000/api/jobs/", { 
-          credentials: "include" 
+        const token = getAuthToken();
+        const response = await fetch("http://localhost:5000/api/employer/jobs", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          credentials: "include"
         });
-        
         if (!response.ok) {
           throw new Error('Failed to fetch jobs');
         }
-        
+
         const data = await response.json();
         console.log("Fetched job list:", data);
-        
+
         // Handle both direct array and nested result structure
         const jobs = data.result || data;
         setJobList(Array.isArray(jobs) ? jobs : []);
@@ -43,11 +51,13 @@ const ListJobCreate = () => {
   const handleDeleteJob = async (jobId) => {
     if (window.confirm("Are you sure you want to delete this job? This action cannot be undone.")) {
       try {
-        const response = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
-          method: "DELETE",
-          credentials: "include",
+        const token = getAuthToken();
+        const response = await fetch("http://localhost:5000/api/employer/jobs", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          credentials: "include"
         });
-
         if (response.ok) {
           setJobList((prevJobs) => prevJobs.filter((job) => job._id !== jobId));
           // You can add a toast notification here
@@ -64,7 +74,7 @@ const ListJobCreate = () => {
   const formatDate = (dateString) => {
     try {
       if (!dateString) return "No date available";
-      
+
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "Invalid date";
 
@@ -131,7 +141,7 @@ const ListJobCreate = () => {
             </div>
             <h3 className="text-2xl font-bold text-gray-800 mb-4">Oops! Something went wrong</h3>
             <p className="text-gray-600 mb-6">{error}</p>
-            <button 
+            <button
               onClick={() => window.location.reload()}
               className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-300 font-medium"
             >
@@ -180,7 +190,7 @@ const ListJobCreate = () => {
     <>
       {BanPopup}
       <HeaderEmployer />
-      
+
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 py-16">
         <div className="container mx-auto px-4 text-center">
@@ -191,7 +201,7 @@ const ListJobCreate = () => {
 
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 py-12">
         <div className="container mx-auto px-4">
-          
+
           {jobList.length === 0 ? (
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-3xl shadow-2xl p-12 text-center">
@@ -215,7 +225,7 @@ const ListJobCreate = () => {
             </div>
           ) : (
             <div className="max-w-7xl mx-auto">
-              
+
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
                 <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-xl">
@@ -300,16 +310,14 @@ const ListJobCreate = () => {
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center space-x-2 ${
-                        activeTab === tab.key
-                          ? `bg-gradient-to-r ${tab.color} text-white shadow-lg scale-105`
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-6 py-3 rounded-xl font-medium transition-all duration-300 flex items-center space-x-2 ${activeTab === tab.key
+                        ? `bg-gradient-to-r ${tab.color} text-white shadow-lg scale-105`
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       <span>{tab.label}</span>
-                      <span className={`px-2 py-1 rounded-full text-sm font-bold ${
-                        activeTab === tab.key ? 'bg-white/20' : 'bg-white'
-                      }`}>
+                      <span className={`px-2 py-1 rounded-full text-sm font-bold ${activeTab === tab.key ? 'bg-white/20' : 'bg-white'
+                        }`}>
                         {tab.count}
                       </span>
                     </button>
@@ -338,7 +346,7 @@ const ListJobCreate = () => {
                       >
                         {/* Job Status Badge */}
                         <div className={`h-2 ${getStatusColor(job.status)}`}></div>
-                        
+
                         <div className="p-6">
                           {/* Job Header */}
                           <div className="flex items-start justify-between mb-4">
@@ -353,7 +361,7 @@ const ListJobCreate = () => {
                                 <span className="text-sm">{job.companyName || "No company"}</span>
                               </div>
                             </div>
-                            
+
                             {activeTab !== 'expired' && (
                               <button
                                 onClick={() => handleDeleteJob(job._id)}
@@ -375,14 +383,14 @@ const ListJobCreate = () => {
                               </svg>
                               <span className="text-sm">{job.location || "Location not specified"}</span>
                             </div>
-                            
+
                             <div className="flex items-center text-gray-600">
                               <svg className="w-4 h-4 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
                               </svg>
                               <span className="text-sm">{formatSalary(job.salary)}</span>
                             </div>
-                            
+
                             <div className="flex items-center text-gray-600">
                               <svg className="w-4 h-4 mr-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a4 4 0 118 0v4m-4 6v6m-4-6v6m8-6v6m-7-3h6"></path>
