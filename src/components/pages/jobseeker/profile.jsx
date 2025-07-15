@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
 import useBanCheck from '../admin/checkban';
+import { 
+    FiUser, FiShield, FiBell, FiSettings, FiMail, FiPhone, 
+    FiMapPin, FiCalendar, FiEdit2, FiCheck, FiLock, FiEye, FiEyeOff 
+} from 'react-icons/fi';
 
 const Profile = () => {
     const BanPopup = useBanCheck();
@@ -10,6 +14,8 @@ const Profile = () => {
     const [activeTab, setActiveTab] = useState('profile');
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [showOtpInput, setShowOtpInput] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [profile, setProfile] = useState({
         firstName: '',
         lastName: '',
@@ -226,258 +232,376 @@ const Profile = () => {
         switch (activeTab) {
             case 'profile':
                 return (
-                    <form onSubmit={handleProfileSubmit} className="divide-y divide-gray-200">
-                        {/* Profile Picture Section */}
-                        <div className="px-6 py-5">
-                            <div className="flex items-start">
-                                <div className="flex-shrink-0">
-                                    <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center">
-                                        <svg className="w-10 h-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="ml-5 flex-1">
-                                    <div className="flex items-center space-x-3">
-                                        <h3 className="text-lg font-medium text-gray-900">
-                                            {profile.firstName} {profile.lastName}
-                                        </h3>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                            @{profile.username}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mt-1">{profile.email}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Personal Information */}
-                        <div className="px-6 py-5">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Personal information</h3>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        First name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="firstName"
-                                        value={profile.firstName}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Last name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="lastName"
-                                        value={profile.lastName}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email address
-                                </label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={profile.email}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-500 text-sm"
-                                    readOnly
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Your email address cannot be changed.</p>
-                            </div>
-                        </div>
-
-                        {/* Contact Information */}
-                        <div className="px-6 py-5">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">Contact information</h3>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        City/Province
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="city"
-                                        value={profile.city}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        placeholder="Enter your city"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Phone number
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="phoneNumber"
-                                        value={profile.phoneNumber}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        placeholder="Enter your phone number"
-                                        pattern="\d+"
-                                        title="Please enter a valid phone number (digits only)"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Date of birth
-                                </label>
-                                <input
-                                    type="date"
-                                    name="dateOfBirth"
-                                    value={profile.dateOfBirth || ''}
-                                    onChange={handleInputChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm max-w-xs"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
-                            <button
-                                type="button"
-                                className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                            >
-                                Update profile
-                            </button>
-                        </div>
-                    </form>
-                );
-
-            case 'account':
-                return (
-                    <div className="px-6 py-5">
-                        <h3 className="text-lg font-medium text-gray-900 mb-6">Change Password</h3>
-                        
-                        {passwordError && (
-                            <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-md">
-                                {passwordError}
-                            </div>
-                        )}
-
-                        {message && (
-                            <div className="p-4 mb-4 text-green-700 bg-green-100 rounded-md">
-                                {message}
-                            </div>
-                        )}
-
-                        <form onSubmit={handlePasswordSubmit} className="space-y-6">
-                            {!showOtpInput && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-6">
-                                    <div className="flex">
-                                        <div className="flex-shrink-0">
-                                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                            </svg>
+                    <div className="p-6">
+                        <form onSubmit={handleProfileSubmit} className="space-y-8">
+                            {/* Profile Picture Section */}
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-6">
+                                        <div className="relative">
+                                            <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                                                <FiUser className="w-12 h-12 text-white" />
+                                            </div>
+                                            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full border-4 border-blue-100 flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all">
+                                                <FiEdit2 className="w-4 h-4 text-blue-600" />
+                                            </div>
                                         </div>
-                                        <div className="ml-3">
-                                            <p className="text-sm text-blue-700">
-                                                To change your password, we'll send a verification code to your email address.
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                                                {profile.firstName} {profile.lastName}
+                                            </h2>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                                    @{profile.username}
+                                                </span>
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                                    <FiCheck className="w-3 h-3 mr-1" />
+                                                    Verified
+                                                </span>
+                                            </div>
+                                            <p className="text-gray-600 mt-2 flex items-center">
+                                                <FiMail className="w-4 h-4 mr-2" />
+                                                {profile.email}
                                             </p>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    New Password
-                                </label>
-                                <input
-                                    type="password"
-                                    name="newPassword"
-                                    value={passwordData.newPassword}
-                                    onChange={handlePasswordChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                    placeholder="Enter new password"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Confirm New Password
-                                </label>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    value={passwordData.confirmPassword}
-                                    onChange={handlePasswordChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                    placeholder="Confirm new password"
-                                    required
-                                />
-                            </div>
-
-                            {showOtpInput && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Verification Code (OTP)
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="otp"
-                                        value={passwordData.otp}
-                                        onChange={handlePasswordChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                        placeholder="Enter the 6-digit code from your email"
-                                        maxLength="6"
-                                        required
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Check your email for the verification code.</p>
-                                </div>
-                            )}
-
-                            <div className="pt-4 flex space-x-3">
-                                {showOtpInput && (
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setShowOtpInput(false);
-                                            setPasswordData(prev => ({ ...prev, otp: '' }));
-                                            setPasswordError('');
-                                        }}
-                                        className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                                        className="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium transition-all duration-200 hover:shadow-md"
                                     >
-                                        Back
+                                        Upload Photo
                                     </button>
-                                )}
+                                </div>
+                            </div>
+
+                            {/* Personal Information */}
+                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <FiUser className="w-5 h-5 mr-2 text-blue-600" />
+                                        Personal Information
+                                    </h3>
+                                    <p className="text-sm text-gray-600 mt-1">Update your personal details and contact information</p>
+                                </div>
+                                
+                                <div className="p-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">
+                                                First Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="firstName"
+                                                value={profile.firstName}
+                                                onChange={handleInputChange}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                placeholder="Enter your first name"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">
+                                                Last Name
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="lastName"
+                                                value={profile.lastName}
+                                                onChange={handleInputChange}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                placeholder="Enter your last name"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            Email Address
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                value={profile.email}
+                                                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-xl shadow-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                                                readOnly
+                                            />
+                                            <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        </div>
+                                        <p className="text-xs text-gray-500 flex items-center">
+                                            <FiShield className="w-3 h-3 mr-1" />
+                                            Your email address is protected and cannot be changed
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Contact Information */}
+                            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <FiPhone className="w-5 h-5 mr-2 text-green-600" />
+                                        Contact Information
+                                    </h3>
+                                    <p className="text-sm text-gray-600 mt-1">Your contact details for communication</p>
+                                </div>
+                                
+                                <div className="p-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">
+                                                City/Province
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    name="city"
+                                                    value={profile.city}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="Enter your city"
+                                                    required
+                                                />
+                                                <FiMapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">
+                                                Phone Number
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    name="phoneNumber"
+                                                    value={profile.phoneNumber}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                    placeholder="Enter your phone number"
+                                                    pattern="\d+"
+                                                    title="Please enter a valid phone number (digits only)"
+                                                    required
+                                                />
+                                                <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            Date of Birth
+                                        </label>
+                                        <div className="relative max-w-xs">
+                                            <input
+                                                type="date"
+                                                name="dateOfBirth"
+                                                value={profile.dateOfBirth || ''}
+                                                onChange={handleInputChange}
+                                                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                required
+                                            />
+                                            <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-end space-x-4 pt-6">
+                                <button
+                                    type="button"
+                                    className="px-6 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 hover:shadow-md"
+                                >
+                                    Cancel Changes
+                                </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                                    className="px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105"
                                 >
-                                    {showOtpInput ? 'Change Password' : 'Send Verification Code'}
+                                    Update Profile
                                 </button>
                             </div>
                         </form>
                     </div>
                 );
 
+            case 'account':
+                return (
+                    <div className="p-6">
+                        <div className="max-w-2xl">
+                            <div className="mb-6">
+                                <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                                    <FiLock className="w-6 h-6 mr-3 text-red-500" />
+                                    Change Password
+                                </h3>
+                                <p className="text-gray-600 mt-2">Secure your account with a strong password</p>
+                            </div>
+                            
+                            {passwordError && (
+                                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                                    <div className="flex items-center">
+                                        <svg className="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="text-red-800 font-medium">{passwordError}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {message && (
+                                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                                    <div className="flex items-center">
+                                        <FiCheck className="w-5 h-5 text-green-500 mr-2" />
+                                        <span className="text-green-800 font-medium">{message}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!showOtpInput && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-500 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h4 className="text-sm font-semibold text-blue-800 mb-1">Security Notice</h4>
+                                            <p className="text-sm text-blue-700">
+                                                We'll send a verification code to <strong>{profile.email}</strong> to confirm your identity before changing your password.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <form onSubmit={handlePasswordSubmit} className="space-y-6">
+                                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            New Password
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                name="newPassword"
+                                                value={passwordData.newPassword}
+                                                onChange={handlePasswordChange}
+                                                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                placeholder="Enter your new password"
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                            >
+                                                {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                        <div className="text-xs text-gray-500 space-y-1">
+                                            <p>Password requirements:</p>
+                                            <ul className="list-disc list-inside pl-4 space-y-0.5">
+                                                <li>At least 8 characters long</li>
+                                                <li>Include uppercase and lowercase letters</li>
+                                                <li>Include at least one number</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            Confirm New Password
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                name="confirmPassword"
+                                                value={passwordData.confirmPassword}
+                                                onChange={handlePasswordChange}
+                                                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                placeholder="Confirm your new password"
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                            >
+                                                {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {showOtpInput && (
+                                        <div className="space-y-2 border-t border-gray-200 pt-6">
+                                            <label className="block text-sm font-semibold text-gray-700">
+                                                Verification Code (OTP)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                name="otp"
+                                                value={passwordData.otp}
+                                                onChange={handlePasswordChange}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 text-center text-lg font-mono tracking-widest"
+                                                placeholder="000000"
+                                                maxLength="6"
+                                                required
+                                            />
+                                            <p className="text-xs text-gray-500 text-center">
+                                                Enter the 6-digit code sent to your email
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between items-center pt-4">
+                                    <div className="flex space-x-3">
+                                        {showOtpInput && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowOtpInput(false);
+                                                    setPasswordData(prev => ({ ...prev, otp: '' }));
+                                                    setPasswordError('');
+                                                }}
+                                                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                                            >
+                                                ← Back
+                                            </button>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="px-8 py-3 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all duration-200 transform hover:scale-105"
+                                    >
+                                        {showOtpInput ? 'Change Password' : 'Send Verification Code'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+
             default:
-                return <div className="px-6 py-5">Coming soon...</div>;
+                return (
+                    <div className="p-6">
+                        <div className="text-center py-16">
+                            <div className="w-24 h-24 bg-gradient-to-r from-gray-400 to-gray-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <FiSettings className="w-12 h-12 text-white" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">Coming Soon</h3>
+                            <p className="text-gray-600 mb-8">This feature is currently under development</p>
+                            <div className="inline-flex items-center px-4 py-2 bg-gray-100 rounded-xl text-sm text-gray-600">
+                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L10 9.586V6z" clipRule="evenodd" />
+                                </svg>
+                                Stay tuned for updates
+                            </div>
+                        </div>
+                    </div>
+                );
         }
     };
 
@@ -486,122 +610,166 @@ const Profile = () => {
             {BanPopup}
             <Header />
             {showSuccessModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50">
-                    <div className="fixed inset-0 bg-black bg-opacity-25"></div>
-                    <div className="bg-white rounded-lg p-6 z-50 relative shadow-lg border max-w-sm w-full mx-4">
-                        <div className="flex items-center mb-4">
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm transition-opacity"></div>
+                    <div className="bg-white rounded-2xl p-8 z-50 relative shadow-2xl border max-w-md w-full mx-4 transform transition-all duration-300 scale-110">
+                        <div className="text-center">
+                            {/* Success Icon */}
+                            <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Success!</h3>
+                            
+                            {/* Title */}
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">Success!</h3>
+                            
+                            {/* Message */}
+                            <p className="text-gray-600 mb-8 leading-relaxed">{message}</p>
+                            
+                            {/* Button */}
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg"
+                            >
+                                Continue
+                            </button>
                         </div>
-                        <p className="text-gray-600 text-sm mb-4">{message}</p>
+                        
+                        {/* Close button */}
                         <button
                             onClick={() => setShowSuccessModal(false)}
-                            className="w-full bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium py-2 px-4 rounded-md transition-colors"
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                            Dismiss
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
                         </button>
                     </div>
                 </div>
             )}
             
-            <div className="min-h-screen bg-gray-50">
-                <div className="max-w-5xl mx-auto pt-8 pb-12 px-4">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+                <div className="max-w-6xl mx-auto pt-8 pb-12 px-4">
                     {/* Navigation breadcrumb */}
-                    <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-                        <span>Settings</span>
+                    <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-8">
+                        <span className="hover:text-blue-600 cursor-pointer transition-colors">Settings</span>
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                         </svg>
-                        <span className="font-medium text-gray-900">Edit Profile</span>
+                        <span className="font-semibold text-gray-900">Edit Profile</span>
                     </nav>
 
-                    <div className="grid grid-cols-12 gap-6">
+                    {/* Page Header */}
+                    <div className="text-center mb-12">
+                        <h1 className="text-4xl font-bold text-gray-900 mb-3">
+                            Account <span className="text-blue-600">Settings</span>
+                        </h1>
+                        <p className="text-lg text-gray-600">Manage your profile and account preferences</p>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-8">
                         {/* Sidebar Navigation */}
                         <div className="col-span-12 lg:col-span-3">
-                            <div className="bg-white border border-gray-200 rounded-lg">
-                                <div className="p-4 border-b border-gray-200">
-                                    <h2 className="font-semibold text-gray-900">Settings</h2>
+                            <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden sticky top-8">
+                                <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+                                    <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                                        <FiSettings className="w-5 h-5 mr-2 text-blue-600" />
+                                        Settings
+                                    </h2>
+                                    <p className="text-sm text-gray-600 mt-1">Customize your account</p>
                                 </div>
-                                <nav className="p-2">
+                                <nav className="p-3">
                                     <button 
                                         onClick={() => setActiveTab('profile')}
-                                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md mb-1 ${
+                                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl mb-2 transition-all duration-200 ${
                                             activeTab === 'profile' 
-                                                ? 'text-gray-900 bg-gray-50' 
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                                ? 'text-white bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg transform scale-105' 
+                                                : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
                                         }`}
                                     >
-                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                        </svg>
-                                        Profile
+                                        <FiUser className="w-4 h-4 mr-3" />
+                                        Profile Information
                                     </button>
                                     <button 
                                         onClick={() => setActiveTab('account')}
-                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md mb-1 ${
+                                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl mb-2 transition-all duration-200 ${
                                             activeTab === 'account' 
-                                                ? 'text-gray-900 bg-gray-50 font-medium' 
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                                ? 'text-white bg-gradient-to-r from-red-500 to-pink-600 shadow-lg transform scale-105' 
+                                                : 'text-gray-700 hover:bg-gray-50 hover:text-red-600'
                                         }`}
                                     >
-                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-                                        </svg>
-                                        Account
+                                        <FiLock className="w-4 h-4 mr-3" />
+                                        Password & Security
                                     </button>
                                     <button 
                                         onClick={() => setActiveTab('security')}
-                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md mb-1 ${
+                                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl mb-2 transition-all duration-200 ${
                                             activeTab === 'security' 
-                                                ? 'text-gray-900 bg-gray-50 font-medium' 
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                                ? 'text-white bg-gradient-to-r from-green-500 to-emerald-600 shadow-lg transform scale-105' 
+                                                : 'text-gray-700 hover:bg-gray-50 hover:text-green-600'
                                         }`}
                                     >
-                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                                        </svg>
-                                        Security
+                                        <FiShield className="w-4 h-4 mr-3" />
+                                        Security Settings
                                     </button>
                                     <button 
                                         onClick={() => setActiveTab('notifications')}
-                                        className={`w-full flex items-center px-3 py-2 text-sm rounded-md ${
+                                        className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                                             activeTab === 'notifications' 
-                                                ? 'text-gray-900 bg-gray-50 font-medium' 
-                                                : 'text-gray-700 hover:bg-gray-50'
+                                                ? 'text-white bg-gradient-to-r from-purple-500 to-indigo-600 shadow-lg transform scale-105' 
+                                                : 'text-gray-700 hover:bg-gray-50 hover:text-purple-600'
                                         }`}
                                     >
-                                        <svg className="w-4 h-4 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" />
-                                        </svg>
+                                        <FiBell className="w-4 h-4 mr-3" />
                                         Notifications
                                     </button>
                                 </nav>
+                                
+                                {/* Quick Info */}
+                                <div className="p-4 m-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-100">
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                                            <FiUser className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                {profile.firstName} {profile.lastName}
+                                            </p>
+                                            <p className="text-xs text-gray-600">{profile.email}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* Main Content */}
                         <div className="col-span-12 lg:col-span-9">
-                            <div className="bg-white border border-gray-200 rounded-lg">
+                            <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
                                 {/* Header */}
-                                <div className="px-6 py-4 border-b border-gray-200">
+                                <div className="px-8 py-6 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h1 className="text-xl font-semibold text-gray-900">
-                                                {activeTab === 'profile' && 'Public profile'}
-                                                {activeTab === 'account' && 'Account Settings'}
+                                            <h1 className="text-2xl font-bold text-gray-900">
+                                                {activeTab === 'profile' && 'Profile Information'}
+                                                {activeTab === 'account' && 'Password & Security'}
                                                 {activeTab === 'security' && 'Security Settings'}
                                                 {activeTab === 'notifications' && 'Notification Settings'}
                                             </h1>
-                                            <p className="text-sm text-gray-600 mt-1">
-                                                {activeTab === 'profile' && 'This information will be displayed publicly so be careful what you share.'}
-                                                {activeTab === 'account' && 'Manage your account settings and change your password.'}
-                                                {activeTab === 'security' && 'Configure your security preferences.'}
-                                                {activeTab === 'notifications' && 'Manage your notification preferences.'}
+                                            <p className="text-gray-600 mt-1">
+                                                {activeTab === 'profile' && 'Update your personal information and contact details'}
+                                                {activeTab === 'account' && 'Manage your password and security preferences'}
+                                                {activeTab === 'security' && 'Configure your security and privacy settings'}
+                                                {activeTab === 'notifications' && 'Customize your notification preferences'}
                                             </p>
+                                        </div>
+                                        <div className="hidden sm:block">
+                                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center">
+                                                {activeTab === 'profile' && <FiUser className="w-6 h-6 text-white" />}
+                                                {activeTab === 'account' && <FiLock className="w-6 h-6 text-white" />}
+                                                {activeTab === 'security' && <FiShield className="w-6 h-6 text-white" />}
+                                                {activeTab === 'notifications' && <FiBell className="w-6 h-6 text-white" />}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

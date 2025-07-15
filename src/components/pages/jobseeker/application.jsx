@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Header from '../../layout/header';
+import { useApplications } from '../../../hooks/useApplications';
 import toastr from 'toastr';
 import 'toastr/build/toastr.min.css';
 import {
     FiBriefcase, FiMapPin, FiCalendar, FiClock, FiDollarSign,
     FiSearch, FiFilter, FiEye, FiFileText, FiCheckCircle, 
     FiXCircle, FiAlertCircle, FiRefreshCw, FiChevronRight,
-    FiStar, FiUsers, FiTrendingUp, FiTarget, FiAward
+    FiStar, FiUsers, FiTrendingUp, FiTarget, FiAward, FiTrash2
 } from 'react-icons/fi';
 
 // Enhanced Skeleton Loader
@@ -33,11 +34,18 @@ const ApplicationSkeleton = () => (
 
 const Application = () => {
     const navigate = useNavigate();
-    const [applications, setApplications] = useState([]);
+    const {
+        loading,
+        applications,
+        fetchUserApplications,
+        handleWithdrawApplication,
+        summary,
+        pagination
+    } = useApplications();
+    
     const [filteredApplications, setFilteredApplications] = useState([]);
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     // Check if user is logged in
@@ -48,70 +56,29 @@ const Application = () => {
             navigate('/login');
             return;
         }
-        fetchApplications();
+        loadApplications();
     }, [userIsLoggedIn, navigate]);
 
     useEffect(() => {
         filterApplications();
     }, [applications, keyword, statusFilter]);
 
-    const fetchApplications = async () => {
-        setLoading(true);
-        setError(null);
-        
+    const loadApplications = async () => {
         try {
-            const user = JSON.parse(localStorage.getItem('user'));
-            const token = user?.token || user?.accessToken;
-            
-            if (!token) {
-                navigate('/login');
-                return;
-            }
-
-            const response = await fetch('http://localhost:5000/api/applications/applied', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            });
-
-            // Check content type
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                if (response.status === 401) {
-                    toastr.error('Session expired. Please log in again.');
-                    localStorage.removeItem('user');
-                    navigate('/login');
-                    return;
-                }
-                throw new Error(`Server returned ${response.status}. Please try again later.`);
-            }
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            if (data.status && data.result) {
-                setApplications(data.result);
-            } else {
-                throw new Error(data.message || "Failed to fetch applications");
-            }
+            setError(null);
+            await fetchUserApplications();
         } catch (err) {
-            console.error("Error fetching applications:", err);
-            setError(err.message || "Could not fetch applications. Please try again.");
-            
-            if (err.name === 'SyntaxError' && err.message.includes('JSON')) {
-                setError('Server error. Please try again later.');
-            }
-        } finally {
-            setLoading(false);
+            setError(err.message || 'Failed to load applications');
         }
     };
 
     const filterApplications = () => {
+        // Ensure applications is an array
+        if (!Array.isArray(applications)) {
+            setFilteredApplications([]);
+            return;
+        }
+        
         let filtered = applications;
 
         // Filter by keyword
@@ -187,6 +154,28 @@ const Application = () => {
     const ApplicationCard = ({ application }) => {
         const job = application.jobId;
         const company = job?.companyId;
+        const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+        const [isWithdrawing, setIsWithdrawing] = useState(false);
+        
+        const handleWithdraw = async () => {
+            setIsWithdrawing(true);
+            
+            try {
+                const result = await handleWithdrawApplication(application._id, job?._id);
+                
+                if (result?.success !== false) {
+                    setShowWithdrawModal(false);
+                    // Refresh the applications list
+                    loadApplications();
+                } else {
+                    toastr.error(result?.message || 'Failed to withdraw application');
+                }
+            } catch (error) {
+                toastr.error('Failed to withdraw application');
+            } finally {
+                setIsWithdrawing(false);
+            }
+        };
         
         return (
             <div className="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:-translate-y-1">
@@ -208,13 +197,31 @@ const Application = () => {
                             </Link>
                         </div>
                         
-                        {company?.url && (
-                            <img 
-                                src={`http://localhost:5000${company.url}`} 
-                                alt="company logo" 
-                                className="w-12 h-12 rounded-xl shadow-md object-cover border-2 border-gray-100"
-                            />
-                        )}
+                        <div className="flex items-center space-x-2">
+                            {company?.url && (
+                                <img 
+                                    src={`http://localhost:5000${company.url}`} 
+                                    alt="company logo" 
+                                    className="w-12 h-12 rounded-xl shadow-md object-cover border-2 border-gray-100"
+                                />
+                            )}
+                            
+                            {/* Withdraw Button - Show for all applications */}
+                            <button
+                                onClick={() => {
+                                    setShowWithdrawModal(true);
+                                }}
+                                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Withdraw Application"
+                                disabled={isWithdrawing}
+                            >
+                                {isWithdrawing ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                ) : (
+                                    <FiTrash2 className="w-4 h-4" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Job Details */}
@@ -242,7 +249,7 @@ const Application = () => {
                         </div>
                         
                         <Link
-                            to={`/jobs/${job?._id}`}
+                            to={`/jobs-detail/${job?._id}`}
                             className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 font-semibold text-sm"
                         >
                             <FiEye className="mr-2 h-4 w-4"/>
@@ -251,12 +258,73 @@ const Application = () => {
                         </Link>
                     </div>
                 </div>
+
+                {/* Withdraw Confirmation Modal */}
+                {showWithdrawModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+                            <div className="text-center">
+                                <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                                    <FiTrash2 className="w-8 h-8 text-red-600" />
+                                </div>
+                                
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    Withdraw Application?
+                                </h3>
+                                
+                                <div className="text-gray-600 mb-6">
+                                    <p className="font-medium text-gray-900">{job?.title}</p>
+                                    <p className="text-sm">{company?.companyName}</p>
+                                    <p className="text-sm mt-2">
+                                        Are you sure you want to withdraw your application? This action cannot be undone.
+                                    </p>
+                                </div>
+                                
+                                <div className="flex space-x-3">
+                                    <button
+                                        onClick={() => setShowWithdrawModal(false)}
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
+                                        disabled={isWithdrawing}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleWithdraw}
+                                        disabled={isWithdrawing}
+                                        className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                                    >
+                                        {isWithdrawing ? (
+                                            <div className="flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                                                Withdrawing...
+                                            </div>
+                                        ) : (
+                                            'Withdraw'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
 
     if (!userIsLoggedIn) {
         return null; // Will redirect in useEffect
+    }
+
+    // Early return if applications state is not properly initialized
+    if (!Array.isArray(applications) && !loading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Initializing applications...</p>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -326,13 +394,13 @@ const Application = () => {
                 </div>
 
                 {/* Stats Summary */}
-                {!loading && !error && (
+                {!loading && !error && Array.isArray(applications) && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-blue-600 font-semibold text-sm">Total Applications</p>
-                                    <p className="text-3xl font-bold text-blue-700">{applications.length}</p>
+                                    <p className="text-3xl font-bold text-blue-700">{summary?.total || applications.length}</p>
                                 </div>
                                 <FiBriefcase className="text-blue-600 text-3xl"/>
                             </div>
@@ -342,7 +410,7 @@ const Application = () => {
                                 <div>
                                     <p className="text-yellow-600 font-semibold text-sm">Pending</p>
                                     <p className="text-3xl font-bold text-yellow-700">
-                                        {applications.filter(app => !app.status || app.status === 'pending').length}
+                                        {summary?.pending ?? applications.filter(app => !app.status || app.status === 'pending').length}
                                     </p>
                                 </div>
                                 <FiClock className="text-yellow-600 text-3xl"/>
@@ -353,7 +421,7 @@ const Application = () => {
                                 <div>
                                     <p className="text-green-600 font-semibold text-sm">Accepted</p>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {applications.filter(app => app.status === 'accepted').length}
+                                        {summary?.accepted ?? applications.filter(app => app.status === 'accepted').length}
                                     </p>
                                 </div>
                                 <FiCheckCircle className="text-green-600 text-3xl"/>
@@ -364,7 +432,7 @@ const Application = () => {
                                 <div>
                                     <p className="text-purple-600 font-semibold text-sm">Under Review</p>
                                     <p className="text-3xl font-bold text-purple-700">
-                                        {applications.filter(app => app.status === 'reviewed').length}
+                                        {summary?.reviewed ?? applications.filter(app => app.status === 'reviewed').length}
                                     </p>
                                 </div>
                                 <FiEye className="text-purple-600 text-3xl"/>
@@ -390,7 +458,7 @@ const Application = () => {
                             <h3 className="text-2xl font-bold text-gray-800 mb-4">Something went wrong</h3>
                             <p className="text-gray-600 mb-8">{error}</p>
                             <button
-                                onClick={fetchApplications}
+                                onClick={loadApplications}
                                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-2xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 font-semibold flex items-center mx-auto"
                             >
                                 <FiRefreshCw className="mr-2"/>
@@ -400,10 +468,22 @@ const Application = () => {
                     </div>
                 )}
 
+                {/* Pagination Info */}
+                {!loading && !error && pagination && pagination.totalPages > 1 && (
+                    <div className="text-center mb-8">
+                        <div className="inline-flex items-center bg-white rounded-2xl p-4 shadow-lg">
+                            <span className="text-gray-600 text-sm">
+                                Page {pagination.currentPage} of {pagination.totalPages} 
+                                ({pagination.totalApplications} total applications)
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Applications Grid */}
                 {!loading && !error && (
                     <>
-                        {filteredApplications.length > 0 ? (
+                        {Array.isArray(filteredApplications) && filteredApplications.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {filteredApplications.map((application) => (
                                     <ApplicationCard key={application._id} application={application} />
@@ -414,10 +494,10 @@ const Application = () => {
                                 <div className="bg-white rounded-3xl shadow-xl p-12 max-w-md mx-auto">
                                     <FiFileText className="mx-auto text-gray-400 text-6xl mb-6" />
                                     <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                                        {applications.length === 0 ? 'No Applications Yet' : 'No Matching Applications'}
+                                        {Array.isArray(applications) && applications.length === 0 ? 'No Applications Yet' : 'No Matching Applications'}
                                     </h3>
                                     <p className="text-gray-600 mb-8">
-                                        {applications.length === 0 
+                                        {Array.isArray(applications) && applications.length === 0 
                                             ? "You haven't applied to any jobs yet. Start exploring opportunities!"
                                             : "Try adjusting your search criteria or filters."
                                         }

@@ -8,7 +8,7 @@ import {
     FiUser, FiEdit3, FiSave, FiEye, FiDownload, FiUpload, 
     FiPlus, FiTrash2, FiMove, FiStar, FiAward, FiBook,
     FiPhone, FiMail, FiMapPin, FiLinkedin, FiGithub,
-    FiBriefcase, FiSettings, FiMenu, FiGrid,
+    FiBriefcase, FiSettings, FiMenu, FiGrid, FiGlobe,
     FiFileText, FiAlertCircle, FiCheck, FiLoader, FiX
 } from 'react-icons/fi';
 import jsPDF from 'jspdf';
@@ -56,11 +56,12 @@ const CVProfile = () => {
     const BanPopup = useBanCheck();
     const navigate = useNavigate();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userId, setUserId] = useState(null); // Add userId state back
     const [selectedTemplate, setSelectedTemplate] = useState('modern');
     const [previewMode, setPreviewMode] = useState(false);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     
-    // Enhanced CV data structure
+    // Enhanced CV data structure to match backend
     const [cvProfile, setCvProfile] = useState({
         personalInfo: {
             fullName: '',
@@ -70,16 +71,19 @@ const CVProfile = () => {
             linkedIn: '',
             github: '',
             portfolio: '',
-            summary: ''
+            summary: '',
+            description: '' // Additional description field
         },
-        skills: [],
-        experience: [],
+        skills: [], // Will contain objects with {skillName, level, yearsOfExperience}
+        experience: [], // Maps to workExperience in backend
         education: [],
-        certifications: [],
+        certifications: [], // Will contain objects with full certification data
         projects: [],
-        languages: [],
+        languages: [], // Now properly supported
         interests: [],
         avatar: null,
+        visibility: 'employers_only', // CV visibility setting
+        isComplete: false, // Completion status
         theme: {
             primaryColor: '#3B82F6',
             fontFamily: 'Inter',
@@ -146,40 +150,213 @@ const CVProfile = () => {
             navigate('/login');
             return;
         }
-        setIsLoggedIn(true);
-        fetchCVProfile();
+        
+        try {
+            const userData = JSON.parse(user);
+            console.log('User data from localStorage:', userData); // Debug log
+            
+            // Try multiple possible userId fields
+            const userIdFromStorage = userData.userData._id
+                
+            if (!userIdFromStorage) {
+                console.error('No userId found in user data:', userData);
+                setError('User data incomplete. Please login again.');
+                setTimeout(() => navigate('/login'), 3000);
+                return;
+            }
+            
+            console.log('Found userId:', userIdFromStorage); // Debug log
+            setUserId(userIdFromStorage);
+            setIsLoggedIn(true);
+            fetchCVProfile(userIdFromStorage);
+            
+        } catch (error) {
+            console.error('Error parsing user data:', error);
+            setError('Invalid user session. Please login again.');
+            setTimeout(() => navigate('/login'), 3000);
+        }
     }, [navigate]);
 
-    const fetchCVProfile = async () => {
+    const fetchCVProfile = async (userIdParam = userId) => {
+        if (!userIdParam) {
+            console.warn('No userId provided to fetchCVProfile');
+            return;
+        }
+        
         try {
-            const response = await fetch(`${API_BASE_URL}/api/viewcvprofile`, {
+            const response = await fetch(`${API_BASE_URL}/api/cv/user/${userIdParam}`, {
+                method: 'GET',
                 credentials: 'include',
-                headers: { 'Accept': 'application/json' }
+                headers: { 
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
             });
 
             if (response.ok) {
                 const data = await response.json();
-                // Transform old format to new structure if needed
-                if (data.skills && typeof data.skills === 'string') {
+                
+                if (data.success && data.data) {
+                    const cvData = data.data;
+                    console.log('Raw CV Data from backend:', cvData); // Debug log
+                    
+                    // Transform skills: keep full object structure for UI, but also create string version for preview
+                    const transformedSkills = cvData.skills ? cvData.skills.map(skill => {
+                        if (typeof skill === 'string') {
+                            return {
+                                skillName: skill,
+                                level: 'intermediate',
+                                yearsOfExperience: 1
+                            };
+                        } else if (skill && skill.skillName) {
+                            return {
+                                skillName: skill.skillName,
+                                level: skill.level || 'intermediate',
+                                yearsOfExperience: skill.yearsOfExperience || 0
+                            };
+                        }
+                        return {
+                            skillName: String(skill),
+                            level: 'intermediate',
+                            yearsOfExperience: 1
+                        };
+                    }) : [];
+                    
+                    // Transform education format with all fields
+                    const transformedEducation = cvData.education ? cvData.education.map(edu => ({
+                        degree: edu.degree || '',
+                        institution: edu.institution || edu.school || '',
+                        fieldOfStudy: edu.fieldOfStudy || '',
+                        startDate: edu.startDate || '',
+                        endDate: edu.endDate || '',
+                        gpa: edu.gpa || '',
+                        description: edu.description || '',
+                        // Keep legacy fields for backward compatibility
+                        school: edu.institution || edu.school || '',
+                        year: edu.endDate ? new Date(edu.endDate).getFullYear() : (edu.year || '')
+                    })) : [];
+                    
+                    // Transform work experience format with all fields
+                    const transformedExperience = cvData.workExperience ? cvData.workExperience.map(exp => ({
+                        position: exp.position || exp.title || exp.jobTitle || '',
+                        company: exp.company || exp.employer || '',
+                        startDate: exp.startDate || '',
+                        endDate: exp.endDate || '',
+                        description: exp.description || exp.responsibilities || '',
+                        isCurrent: exp.isCurrent || false,
+                        // Keep legacy fields for backward compatibility
+                        title: exp.position || exp.title || exp.jobTitle || '',
+                        duration: exp.duration || (exp.startDate && exp.endDate ? 
+                            `${new Date(exp.startDate).getFullYear()} - ${exp.isCurrent ? 'Present' : new Date(exp.endDate).getFullYear()}` : 
+                            (exp.startDate ? `${new Date(exp.startDate).getFullYear()} - Present` : ''))
+                    })) : [];
+                    
+                    // Transform certifications format with all fields
+                    const transformedCertifications = cvData.certifications ? cvData.certifications.map(cert => ({
+                        name: cert.name || cert.title || cert,
+                        issuer: cert.issuer || '',
+                        issueDate: cert.issueDate || new Date().toISOString(),
+                        expiryDate: cert.expiryDate || null,
+                        credentialId: cert.credentialId || '',
+                        files: cert.files || []
+                    })) : [];
+                    
+                    // Transform languages with proficiency levels
+                    const transformedLanguages = cvData.languages ? cvData.languages.map(lang => ({
+                        language: lang.language || lang.name || lang,
+                        proficiency: lang.proficiency || 'conversational',
+                        certification: lang.certification || ''
+                    })) : [];
+                    
+                    // Transform backend data to frontend structure
                     setCvProfile(prev => ({
                         ...prev,
                         personalInfo: {
-                            ...prev.personalInfo,
-                            summary: data.description || '',
+                            // Backend doesn't have personalInfo object, so we extract from top level
+                            fullName: cvData.fullName || cvData.name || prev.personalInfo.fullName || '',
+                            email: cvData.userId?.email || cvData.email || prev.personalInfo.email || '',
+                            phone: cvData.phoneNumber || cvData.phone || prev.personalInfo.phone || '',
+                            location: cvData.location || cvData.address || prev.personalInfo.location || '',
+                            linkedIn: cvData.linkedIn || cvData.linkedin || prev.personalInfo.linkedIn || '',
+                            github: cvData.github || prev.personalInfo.github || '',
+                            portfolio: cvData.portfolio || prev.personalInfo.portfolio || '',
+                            summary: cvData.summary || cvData.description || prev.personalInfo.summary || '',
+                            description: cvData.description || prev.personalInfo.summary || ''
                         },
-                        skills: data.skills.split(',').map(skill => skill.trim()),
-                        experience: data.experience ? [{ title: '', company: '', description: data.experience }] : [],
-                        education: data.education ? [{ degree: '', school: '', description: data.education }] : [],
-                        certifications: data.certifications ? data.certifications.split(',').map(cert => cert.trim()) : [],
-                        avatar: data.avatar
+                        skills: transformedSkills,
+                        experience: transformedExperience,
+                        education: transformedEducation,
+                        certifications: transformedCertifications,
+                        projects: cvData.projects || [],
+                        languages: transformedLanguages,
+                        interests: cvData.interests || cvData.hobbies || [],
+                        avatar: cvData.profilePhoto || cvData.avatar || null,
+                        visibility: cvData.visibility || 'employers_only',
+                        isComplete: cvData.isComplete || false,
+                        theme: cvData.theme || prev.theme
                     }));
+                    
+                    console.log('Transformed CV Data:', {
+                        skills: transformedSkills,
+                        experience: transformedExperience,
+                        education: transformedEducation,
+                        certifications: transformedCertifications
+                    }); // Debug log
+                    
                 } else {
-                    setCvProfile(prev => ({ ...prev, ...data }));
+                    // If no CV profile exists, initialize one
+                    await initializeCVProfile(userIdParam);
                 }
+            } else if (response.status === 404) {
+                // CV profile doesn't exist, initialize it
+                console.log('CV profile not found, initializing...');
+                await initializeCVProfile(userIdParam);
+            } else {
+                throw new Error('Failed to fetch CV profile');
             }
         } catch (error) {
             console.error('Error fetching CV profile:', error);
-            setError('Failed to load CV profile');
+            // Try to initialize CV profile if fetch fails
+            try {
+                await initializeCVProfile(userIdParam);
+            } catch (initError) {
+                console.error('Error initializing CV profile:', initError);
+                setError('Failed to load or create CV profile');
+            }
+        }
+    };
+
+    const initializeCVProfile = async (userIdParam = userId) => {
+        if (!userIdParam) {
+            console.warn('No userId provided to initializeCVProfile');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/cv/initialize`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: userIdParam
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    console.log('CV profile initialized successfully');
+                    // Fetch the newly created profile
+                    await fetchCVProfile(userIdParam);
+                }
+            } else {
+                throw new Error('Failed to initialize CV profile');
+            }
+        } catch (error) {
+            console.error('Error initializing CV profile:', error);
+            setError('Failed to initialize CV profile');
         }
     };
 
@@ -231,6 +408,7 @@ const CVProfile = () => {
         { id: 'experience', label: 'Experience', icon: FiBriefcase },
         { id: 'education', label: 'Education', icon: FiBook },
         { id: 'skills', label: 'Skills', icon: FiStar },
+        { id: 'languages', label: 'Languages', icon: FiGlobe },
         { id: 'projects', label: 'Projects', icon: FiAward },
         { id: 'certifications', label: 'Certifications', icon: FiAward },
         { id: 'template', label: 'Template', icon: FiSettings },
@@ -246,6 +424,27 @@ const CVProfile = () => {
         education: { title: 'Education', icon: FiBook, required: false },
         projects: { title: 'Projects', icon: FiAward, required: false },
         certifications: { title: 'Certifications', icon: FiAward, required: false }
+    };
+
+    // Helper function to safely extract skill name
+    const getSkillName = (skill) => {
+        if (typeof skill === 'string') {
+            return skill;
+        } else if (skill && skill.skillName) {
+            return skill.skillName;
+        } else if (skill && skill.name) {
+            return skill.name;
+        }
+        return String(skill);
+    };
+
+    // Helper function to get skill display with level
+    const getSkillDisplay = (skill) => {
+        const name = getSkillName(skill);
+        if (skill && skill.level && skill.yearsOfExperience !== undefined) {
+            return `${name} (${skill.level}, ${skill.yearsOfExperience}y)`;
+        }
+        return name;
     };
 
     // CV Preview Component
@@ -322,8 +521,12 @@ const CVProfile = () => {
                                                 <div className="absolute left-1.5 top-5 w-0.5 h-full bg-blue-200"></div>
                                                 <div className="bg-gray-50 rounded-lg p-4 ml-4">
                                                     <div className="flex justify-between items-start mb-2">
-                                                        <h3 className="text-xl font-semibold text-gray-800">{exp.title}</h3>
-                                                        <span className="text-blue-600 font-medium text-sm bg-blue-100 px-3 py-1 rounded-full">{exp.duration}</span>
+                                                        <h3 className="text-xl font-semibold text-gray-800">{exp.position || exp.title}</h3>
+                                                        <span className="text-blue-600 font-medium text-sm bg-blue-100 px-3 py-1 rounded-full">
+                                                            {exp.duration || (exp.startDate && exp.endDate ? 
+                                                                `${new Date(exp.startDate).getFullYear()} - ${exp.isCurrent ? 'Present' : new Date(exp.endDate).getFullYear()}` : 
+                                                                (exp.startDate ? `${new Date(exp.startDate).getFullYear()} - Present` : ''))}
+                                                        </span>
                                                     </div>
                                                     <p className="text-blue-600 font-medium mb-3">{exp.company}</p>
                                                     <p className="text-gray-700 leading-relaxed">{exp.description}</p>
@@ -344,7 +547,7 @@ const CVProfile = () => {
                                                 <span key={index} 
                                                       className="px-3 py-1 rounded-full text-white text-sm font-medium"
                                                       style={{ backgroundColor: cvProfile.theme.primaryColor }}>
-                                                    {skill}
+                                                    {getSkillName(skill)}
                                                 </span>
                                             ))}
                                         </div>
@@ -358,10 +561,14 @@ const CVProfile = () => {
                                             Education
                                         </h2>
                                         {cvProfile.education.map((edu, index) => (
-                                            <div key={index} className="mb-4 last:mb-0">
-                                                <h3 className="text-lg font-semibold text-gray-800">{edu.degree}</h3>
-                                                <p className="text-gray-600">{edu.school}</p>
-                                                <p className="text-gray-500 text-sm">{edu.year}</p>
+                                            <div key={index} className="mb-4 last:mb-0 bg-gray-50 rounded-lg p-4">
+                                                <h3 className="font-semibold text-gray-800">{edu.degree}</h3>
+                                                <p className="text-blue-600 font-medium">{edu.institution || edu.school}</p>
+                                                <p className="text-gray-500 text-sm">
+                                                    {edu.year || (edu.endDate ? new Date(edu.endDate).getFullYear() : '')}
+                                                    {edu.fieldOfStudy && ` • ${edu.fieldOfStudy}`}
+                                                    {edu.gpa && ` • GPA: ${edu.gpa}`}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
@@ -392,7 +599,7 @@ const CVProfile = () => {
                                         <div className="space-y-2">
                                             {cvProfile.certifications.map((cert, index) => (
                                                 <div key={index} className="text-gray-700">
-                                                    • {cert}
+                                                    • {cert.name || cert}
                                                 </div>
                                             ))}
                                         </div>
@@ -472,8 +679,12 @@ const CVProfile = () => {
                                                 <div className="absolute left-1.5 top-5 w-0.5 h-full bg-blue-200"></div>
                                                 <div className="bg-gray-50 rounded-lg p-4 ml-4">
                                                     <div className="flex justify-between items-start mb-2">
-                                                        <h3 className="text-xl font-semibold text-gray-800">{exp.title}</h3>
-                                                        <span className="text-blue-600 font-medium text-sm bg-blue-100 px-3 py-1 rounded-full">{exp.duration}</span>
+                                                        <h3 className="text-xl font-semibold text-gray-800">{exp.position || exp.title}</h3>
+                                                        <span className="text-blue-600 font-medium text-sm bg-blue-100 px-3 py-1 rounded-full">
+                                                            {exp.duration || (exp.startDate && exp.endDate ? 
+                                                                `${new Date(exp.startDate).getFullYear()} - ${exp.isCurrent ? 'Present' : new Date(exp.endDate).getFullYear()}` : 
+                                                                (exp.startDate ? `${new Date(exp.startDate).getFullYear()} - Present` : ''))}
+                                                        </span>
                                                     </div>
                                                     <p className="text-blue-600 font-medium mb-3">{exp.company}</p>
                                                     <p className="text-gray-700 leading-relaxed">{exp.description}</p>
@@ -496,7 +707,7 @@ const CVProfile = () => {
                                             {cvProfile.skills.map((skill, index) => (
                                                 <div key={index} className="flex items-center">
                                                     <span className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium w-full text-center">
-                                                        {skill}
+                                                        {getSkillName(skill)}
                                                     </span>
                                                 </div>
                                             ))}
@@ -513,8 +724,12 @@ const CVProfile = () => {
                                         {cvProfile.education.map((edu, index) => (
                                             <div key={index} className="mb-4 last:mb-0 bg-gray-50 rounded-lg p-4">
                                                 <h3 className="font-semibold text-gray-800">{edu.degree}</h3>
-                                                <p className="text-blue-600 font-medium">{edu.school}</p>
-                                                <p className="text-gray-500 text-sm">{edu.year}</p>
+                                                <p className="text-blue-600 font-medium">{edu.institution || edu.school}</p>
+                                                <p className="text-gray-500 text-sm">
+                                                    {edu.year || (edu.endDate ? new Date(edu.endDate).getFullYear() : '')}
+                                                    {edu.fieldOfStudy && ` • ${edu.fieldOfStudy}`}
+                                                    {edu.gpa && ` • GPA: ${edu.gpa}`}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
@@ -544,7 +759,7 @@ const CVProfile = () => {
                                         </h2>
                                         <div className="space-y-2">
                                             {cvProfile.certifications.map((cert, index) => (
-                                                <div key={index} className="text-gray-700">• {cert}</div>
+                                                <div key={index} className="text-gray-700">• {cert.name || cert}</div>
                                             ))}
                                         </div>
                                     </div>
@@ -620,7 +835,7 @@ const CVProfile = () => {
                                     <div className="space-y-1">
                                         {cvProfile.skills.map((skill, index) => (
                                             <div key={index} className="text-gray-700">
-                                                • {skill}
+                                                {getSkillName(skill)}
                                             </div>
                                         ))}
                                     </div>
@@ -668,7 +883,7 @@ const CVProfile = () => {
                                 </h2>
                                 <div className="space-y-1">
                                     {cvProfile.certifications.map((cert, index) => (
-                                        <div key={index} className="text-gray-700">• {cert}</div>
+                                        <div key={index} className="text-gray-700">• {cert.name || cert}</div>
                                     ))}
                                 </div>
                             </div>
@@ -723,7 +938,7 @@ const CVProfile = () => {
                                     <div className="space-y-3">
                                         {cvProfile.skills.map((skill, index) => (
                                             <div key={index} className="bg-white bg-opacity-20 rounded-lg p-2 text-center text-sm">
-                                                {skill}
+                                                {getSkillName(skill)}
                                             </div>
                                         ))}
                                     </div>
@@ -815,7 +1030,7 @@ const CVProfile = () => {
                                     <div className="space-y-2">
                                         {cvProfile.certifications.map((cert, index) => (
                                             <div key={index} className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
-                                                {cert}
+                                                {cert.name || cert}
                                             </div>
                                         ))}
                                     </div>
@@ -899,7 +1114,7 @@ const CVProfile = () => {
                                     <div className="space-y-2">
                                         {cvProfile.skills.map((skill, index) => (
                                             <div key={index} className="text-gray-700">
-                                                {skill}
+                                                {getSkillName(skill)}
                                             </div>
                                         ))}
                                     </div>
@@ -916,8 +1131,12 @@ const CVProfile = () => {
                                         {cvProfile.education.map((edu, index) => (
                                             <div key={index}>
                                                 <h3 className="font-medium text-gray-900">{edu.degree}</h3>
-                                                <p className="text-gray-700">{edu.school}</p>
-                                                <p className="text-gray-500 text-sm">{edu.year}</p>
+                                                <p className="text-gray-700">{edu.institution || edu.school}</p>
+                                                <p className="text-gray-600 text-sm">
+                                                    {edu.year || (edu.endDate ? new Date(edu.endDate).getFullYear() : '')}
+                                                    {edu.fieldOfStudy && ` • ${edu.fieldOfStudy}`}
+                                                    {edu.gpa && ` • GPA: ${edu.gpa}`}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
@@ -951,7 +1170,7 @@ const CVProfile = () => {
                                 </h2>
                                 <div className="space-y-2">
                                     {cvProfile.certifications.map((cert, index) => (
-                                        <div key={index} className="text-gray-700">• {cert}</div>
+                                        <div key={index} className="text-gray-700">• {cert.name || cert}</div>
                                     ))}
                                 </div>
                             </div>
@@ -1151,7 +1370,14 @@ const CVProfile = () => {
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-800">Certifications</h3>
                 <button
-                    onClick={() => setCvProfile(prev => ({ ...prev, certifications: [...prev.certifications, ''] }))}
+                    onClick={() => addField('certifications', { 
+                        name: '', 
+                        issuer: '', 
+                        issueDate: '', 
+                        expiryDate: '', 
+                        credentialId: '',
+                        files: []
+                    })}
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center"
                 >
                     <FiPlus className="mr-2" /> Add Certification
@@ -1164,19 +1390,16 @@ const CVProfile = () => {
                         <input
                             type="text"
                             placeholder="Certification name"
-                            value={cert}
+                            value={cert.name || cert}
                             onChange={(e) => {
                                 const newCerts = [...cvProfile.certifications];
-                                newCerts[index] = e.target.value;
+                                newCerts[index] = { ...newCerts[index], name: e.target.value };
                                 setCvProfile(prev => ({ ...prev, certifications: newCerts }));
                             }}
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                         <button
-                            onClick={() => {
-                                const newCerts = cvProfile.certifications.filter((_, i) => i !== index);
-                                setCvProfile(prev => ({ ...prev, certifications: newCerts }));
-                            }}
+                            onClick={() => removeField('certifications', index)}
                             className="text-red-500 hover:text-red-700 p-1"
                         >
                             <FiTrash2 size={16} />
@@ -1435,6 +1658,7 @@ const CVProfile = () => {
             case 'experience': return renderExperienceSection();
             case 'education': return renderEducationSection();
             case 'skills': return renderSkillsSection();
+            case 'languages': return renderLanguagesSection();
             case 'projects': return renderProjectsSection();
             case 'certifications': return renderCertificationsSection();
             case 'template': return renderTemplateSection();
@@ -1486,6 +1710,11 @@ const CVProfile = () => {
 
     // Enhanced save functionality
     const handleSave = async () => {
+        if (!userId) {
+            setError('User ID not found');
+            return;
+        }
+        
         setIsSaving(true);
         const errors = CVValidator.validateCV(cvProfile);
         setValidationErrors(errors);
@@ -1500,31 +1729,88 @@ const CVProfile = () => {
             // Save to local storage
             CVStorage.save(cvProfile);
             
-            // Save to server (existing API)
-            const formData = new FormData();
-            formData.append('skills', cvProfile.skills.join(', '));
-            formData.append('experience', JSON.stringify(cvProfile.experience));
-            formData.append('description', cvProfile.personalInfo.summary);
-            formData.append('education', JSON.stringify(cvProfile.education));
-            formData.append('certifications', cvProfile.certifications.join(', '));
-            
-            if (cvProfile.avatarFile) {
-                formData.append('avatarFile', cvProfile.avatarFile);
-            }
+            // Transform frontend data to backend format
+            const updateData = {
+                // Basic info (backend expects these at top level, not in personalInfo)
+                fullName: cvProfile.personalInfo.fullName,
+                phoneNumber: cvProfile.personalInfo.phone,
+                location: cvProfile.personalInfo.location,
+                linkedIn: cvProfile.personalInfo.linkedIn,
+                github: cvProfile.personalInfo.github,
+                portfolio: cvProfile.personalInfo.portfolio,
+                summary: cvProfile.personalInfo.summary,
+                description: cvProfile.personalInfo.summary, // Backend might expect description
+                
+                // Transform skills to backend format (array of objects)
+                skills: cvProfile.skills.map(skill => ({
+                    skillName: typeof skill === 'string' ? skill : skill.skillName || skill,
+                    level: 'intermediate', // Default level
+                    yearsOfExperience: 1 // Default experience
+                })),
+                
+                // Transform experience to backend format (workExperience)
+                workExperience: cvProfile.experience.map(exp => ({
+                    position: exp.position || exp.title || '',
+                    company: exp.company || '',
+                    startDate: exp.startDate || null,
+                    endDate: exp.endDate || null,
+                    description: exp.description || '',
+                    isCurrent: exp.isCurrent || false
+                })),
+                
+                // Transform education to backend format
+                education: cvProfile.education.map(edu => ({
+                    degree: edu.degree || '',
+                    institution: edu.institution || edu.school || '', 
+                    fieldOfStudy: edu.fieldOfStudy || '',
+                    startDate: edu.startDate || null,
+                    endDate: edu.endDate || null,
+                    gpa: edu.gpa || null
+                })),
+                
+                // Keep certifications as is (backend expects this format)
+                certifications: cvProfile.certifications.map(cert => ({
+                    name: typeof cert === 'string' ? cert : cert.name || cert,
+                    issuer: cert.issuer || '',
+                    issueDate: cert.issueDate || new Date().toISOString(),
+                    expiryDate: cert.expiryDate || null,
+                    credentialId: cert.credentialId || '',
+                    files: cert.files || []
+                })),
+                
+                // Other fields
+                projects: cvProfile.projects || [],
+                languages: cvProfile.languages || [],
+                interests: cvProfile.interests || [],
+                theme: cvProfile.theme || {}
+            };
 
-            const response = await fetch(`${API_BASE_URL}/api/updatecvprofile`, {
-                method: 'POST',
+            console.log('Sending data to backend:', updateData); // Debug log
+
+            // Save to server with backend API structure
+            const response = await fetch(`${API_BASE_URL}/api/cv/user/${userId}`, {
+                method: 'PUT',
                 credentials: 'include',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updateData)
             });
 
             if (response.ok) {
-                setMessage('CV saved successfully!');
-                setTimeout(() => setMessage(''), 3000);
+                const data = await response.json();
+                if (data.success) {
+                    setMessage('CV saved successfully!');
+                    setTimeout(() => setMessage(''), 3000);
+                } else {
+                    throw new Error(data.message || 'Failed to save CV');
+                }
             } else {
-                throw new Error('Failed to save to server');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to save to server');
             }
         } catch (error) {
+            console.error('Save error:', error);
             setError(`Save failed: ${error.message}`);
             setTimeout(() => setError(''), 3000);
         } finally {
@@ -1873,6 +2159,21 @@ const CVProfile = () => {
 
     const renderPersonalSection = () => (
         <div className="space-y-6">
+            {/* CV Completion Status */}
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-3 ${cvProfile.isComplete ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                        <span className="font-medium text-gray-700">
+                            CV Status: {cvProfile.isComplete ? 'Complete' : 'In Progress'}
+                        </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                        Visibility: <span className="font-medium capitalize">{cvProfile.visibility.replace('_', ' ')}</span>
+                    </div>
+                </div>
+            </div>
+
             {/* Avatar Upload */}
             <div className="flex items-center space-x-6">
                 {cvProfile.avatar ? (
@@ -1940,12 +2241,35 @@ const CVProfile = () => {
                 />
             </div>
 
+            {/* CV Visibility Setting */}
+            <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">CV Visibility</label>
+                <select 
+                    value={cvProfile.visibility}
+                    onChange={(e) => setCvProfile(prev => ({ ...prev, visibility: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="public">Public - Visible to everyone</option>
+                    <option value="employers_only">Employers Only - Visible to employers only</option>
+                    <option value="private">Private - Only visible to you</option>
+                </select>
+            </div>
+
             {/* Summary */}
             <textarea
                 placeholder="Professional summary..."
                 value={cvProfile.personalInfo.summary}
                 onChange={(e) => updatePersonalInfo('summary', e.target.value)}
                 rows="4"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+
+            {/* Additional Description */}
+            <textarea
+                placeholder="Additional description or notes..."
+                value={cvProfile.personalInfo.description}
+                onChange={(e) => updatePersonalInfo('description', e.target.value)}
+                rows="3"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             />
         </div>
@@ -1956,7 +2280,14 @@ const CVProfile = () => {
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-800">Work Experience</h3>
                 <button
-                    onClick={() => addField('experience', { title: '', company: '', duration: '', description: '' })}
+                    onClick={() => addField('experience', { 
+                        position: '', 
+                        company: '', 
+                        startDate: '', 
+                        endDate: '', 
+                        description: '',
+                        isCurrent: false 
+                    })}
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center"
                 >
                     <FiPlus className="mr-2" /> Add Experience
@@ -1976,31 +2307,69 @@ const CVProfile = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <input
-                            type="text"
-                            placeholder="Job Title"
-                            value={exp.title}
-                            onChange={(e) => updateField('experience', index, 'title', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Company"
-                            value={exp.company}
-                            onChange={(e) => updateField('experience', index, 'company', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Duration (e.g., 2020 - 2023)"
-                            value={exp.duration}
-                            onChange={(e) => updateField('experience', index, 'duration', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Job Title/Position</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Software Engineer"
+                                value={exp.position || exp.title}
+                                onChange={(e) => updateField('experience', index, 'position', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Company</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Google Inc."
+                                value={exp.company}
+                                onChange={(e) => updateField('experience', index, 'company', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+                            <input
+                                type="date"
+                                value={exp.startDate ? exp.startDate.split('T')[0] : ''}
+                                onChange={(e) => updateField('experience', index, 'startDate', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+                            <input
+                                type="date"
+                                value={exp.endDate ? exp.endDate.split('T')[0] : ''}
+                                onChange={(e) => updateField('experience', index, 'endDate', e.target.value)}
+                                disabled={exp.isCurrent}
+                                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${exp.isCurrent ? 'bg-gray-100' : ''}`}
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="mb-4">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={exp.isCurrent || false}
+                                onChange={(e) => {
+                                    updateField('experience', index, 'isCurrent', e.target.checked);
+                                    if (e.target.checked) {
+                                        updateField('experience', index, 'endDate', '');
+                                    }
+                                }}
+                                className="rounded text-blue-500 focus:ring-blue-500" 
+                            />
+                            <span className="text-sm text-gray-700">I currently work here</span>
+                        </label>
                     </div>
 
                     <textarea
-                        placeholder="Job description..."
+                        placeholder="Job description and achievements..."
                         value={exp.description}
                         onChange={(e) => updateField('experience', index, 'description', e.target.value)}
                         rows="3"
@@ -2016,7 +2385,15 @@ const CVProfile = () => {
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-800">Education</h3>
                 <button
-                    onClick={() => addField('education', { degree: '', school: '', year: '', description: '' })}
+                    onClick={() => addField('education', { 
+                        degree: '', 
+                        institution: '', 
+                        fieldOfStudy: '', 
+                        startDate: '', 
+                        endDate: '', 
+                        gpa: '',
+                        description: '' 
+                    })}
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center"
                 >
                     <FiPlus className="mr-2" /> Add Education
@@ -2036,32 +2413,77 @@ const CVProfile = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <input
-                            type="text"
-                            placeholder="Degree"
-                            value={edu.degree}
-                            onChange={(e) => updateField('education', index, 'degree', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                            type="text"
-                            placeholder="School"
-                            value={edu.school}
-                            onChange={(e) => updateField('education', index, 'school', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Year (e.g., 2023)"
-                            value={edu.year}
-                            onChange={(e) => updateField('education', index, 'year', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Degree</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Bachelor of Science"
+                                value={edu.degree}
+                                onChange={(e) => updateField('education', index, 'degree', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Institution</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Harvard University"
+                                value={edu.institution || edu.school}
+                                onChange={(e) => updateField('education', index, 'institution', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Field of Study</label>
+                            <input
+                                type="text"
+                                placeholder="e.g., Computer Science"
+                                value={edu.fieldOfStudy || ''}
+                                onChange={(e) => updateField('education', index, 'fieldOfStudy', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">GPA (Optional)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="4.0"
+                                placeholder="e.g., 3.8"
+                                value={edu.gpa || ''}
+                                onChange={(e) => updateField('education', index, 'gpa', parseFloat(e.target.value) || '')}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+                            <input
+                                type="date"
+                                value={edu.startDate ? edu.startDate.split('T')[0] : ''}
+                                onChange={(e) => updateField('education', index, 'startDate', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+                            <input
+                                type="date"
+                                value={edu.endDate ? edu.endDate.split('T')[0] : ''}
+                                onChange={(e) => updateField('education', index, 'endDate', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
                     </div>
 
                     <textarea
-                        placeholder="Additional details..."
-                        value={edu.description}
+                        placeholder="Additional details or achievements..."
+                        value={edu.description || ''}
                         onChange={(e) => updateField('education', index, 'description', e.target.value)}
                         rows="3"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -2074,12 +2496,28 @@ const CVProfile = () => {
     const renderSkillsSection = () => {
         const addSkill = () => {
             if (!newSkillInput.trim()) return;
-            setCvProfile(prev => ({ ...prev, skills: [...prev.skills, newSkillInput.trim()] }));
+            setCvProfile(prev => ({ 
+                ...prev, 
+                skills: [...prev.skills, {
+                    skillName: newSkillInput.trim(),
+                    level: 'intermediate',
+                    yearsOfExperience: 1
+                }] 
+            }));
             setNewSkillInput('');
         };
 
         const removeSkill = (index) => {
             setCvProfile(prev => ({ ...prev, skills: prev.skills.filter((_, i) => i !== index) }));
+        };
+
+        const updateSkill = (index, field, value) => {
+            setCvProfile(prev => ({
+                ...prev,
+                skills: prev.skills.map((skill, i) => 
+                    i === index ? { ...skill, [field]: value } : skill
+                )
+            }));
         };
 
         return (
@@ -2101,19 +2539,165 @@ const CVProfile = () => {
                 </div>
 
                 {cvProfile.skills.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">Your Skills</h4>
                         {cvProfile.skills.map((skill, index) => (
-                            <span
-                                key={index}
-                                className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full flex items-center space-x-1 text-sm"
-                            >
-                                <span>{skill}</span>
-                                <FiTrash2
-                                    size={12}
-                                    className="cursor-pointer"
-                                    onClick={() => removeSkill(index)}
-                                />
-                            </span>
+                            <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <div className="flex justify-between items-start mb-3">
+                                    <h5 className="font-medium text-gray-800">Skill {index + 1}</h5>
+                                    <button
+                                        onClick={() => removeSkill(index)}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                    >
+                                        <FiTrash2 size={16} />
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Skill Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., JavaScript"
+                                            value={skill.skillName || ''}
+                                            onChange={(e) => updateSkill(index, 'skillName', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Proficiency Level</label>
+                                        <select
+                                            value={skill.level || 'intermediate'}
+                                            onChange={(e) => updateSkill(index, 'level', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="beginner">Beginner</option>
+                                            <option value="intermediate">Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                            <option value="expert">Expert</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Years of Experience</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="50"
+                                            placeholder="0"
+                                            value={skill.yearsOfExperience || 0}
+                                            onChange={(e) => updateSkill(index, 'yearsOfExperience', parseInt(e.target.value) || 0)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderLanguagesSection = () => {
+        const addLanguage = () => {
+            if (!newSkillInput.trim()) return;
+            setCvProfile(prev => ({ 
+                ...prev, 
+                languages: [...prev.languages, {
+                    language: newSkillInput.trim(),
+                    proficiency: 'conversational',
+                    certification: ''
+                }] 
+            }));
+            setNewSkillInput('');
+        };
+
+        const removeLanguage = (index) => {
+            setCvProfile(prev => ({ ...prev, languages: prev.languages.filter((_, i) => i !== index) }));
+        };
+
+        const updateLanguage = (index, field, value) => {
+            setCvProfile(prev => ({
+                ...prev,
+                languages: prev.languages.map((lang, i) => 
+                    i === index ? { ...lang, [field]: value } : lang
+                )
+            }));
+        };
+
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center space-x-4">
+                    <input
+                        type="text"
+                        placeholder="Add a language"
+                        value={newSkillInput}
+                        onChange={(e) => setNewSkillInput(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                        onClick={addLanguage}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        <FiPlus />
+                    </button>
+                </div>
+
+                {cvProfile.languages.length > 0 && (
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-gray-800">Your Languages</h4>
+                        {cvProfile.languages.map((lang, index) => (
+                            <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <div className="flex justify-between items-start mb-3">
+                                    <h5 className="font-medium text-gray-800">Language {index + 1}</h5>
+                                    <button
+                                        onClick={() => removeLanguage(index)}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                    >
+                                        <FiTrash2 size={16} />
+                                    </button>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Language Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., English"
+                                            value={lang.language || ''}
+                                            onChange={(e) => updateLanguage(index, 'language', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Proficiency Level</label>
+                                        <select
+                                            value={lang.proficiency || 'conversational'}
+                                            onChange={(e) => updateLanguage(index, 'proficiency', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="basic">Basic</option>
+                                            <option value="conversational">Conversational</option>
+                                            <option value="fluent">Fluent</option>
+                                            <option value="native">Native</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-600 mb-1">Certification</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., TOEFL"
+                                            value={lang.certification || ''}
+                                            onChange={(e) => updateLanguage(index, 'certification', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )}
@@ -2233,6 +2817,7 @@ const CVProfile = () => {
                                                                 {activeSection === 'experience' && 'Your work history and achievements'}
                                                                 {activeSection === 'education' && 'Educational background and qualifications'}
                                                                 {activeSection === 'skills' && 'Technical and soft skills'}
+                                                                {activeSection === 'languages' && 'Languages and proficiency levels'}
                                                                 {activeSection === 'projects' && 'Notable projects and portfolio'}
                                                                 {activeSection === 'certifications' && 'Certificates and credentials'}
                                                                 {activeSection === 'template' && 'Customize appearance and theme'}
