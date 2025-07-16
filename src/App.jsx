@@ -41,6 +41,7 @@ import JobList from "./components/pages/admin/jobmanagement";
 import DoTest from "./components/pages/employer/dotest";
 import SkillTestMark from "./components/pages/employer/skilltestmark";
 import Subscription from "./components/pages/jobseeker/subscription";
+import AdminCompaniesPage from "./components/pages/admin/companiesmanagement";
 import ChatBox from "./components/layout/chatbox";
 
 const App = () => {
@@ -54,11 +55,12 @@ const App = () => {
           <Route path="/admin/home" element={<HomeAdmin />} />
           <Route path="/login" element={<Login />} />
           <Route path="/loginemployeer" element={<LoginEmp />} />
+          <Route path="/cvprofile" element={<CVProfile />} />
           <Route path="/cvgenerate" element={<CVGenerator />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registeremp" element={<RegisterEmployer />} />
           <Route path="/otp-verification" element={<OTPVerification />} />
-          <Route path="/cvprofile" element={<CVProfile />} />
+          <Route path="/listApplyCv/:jobId" element={<ApproveCv />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/changepass" element={<ChangePassword />} />
           <Route path="/jobsearch" element={<JobSearch />} />
@@ -88,6 +90,7 @@ const App = () => {
           <Route path="/admin/jobs" element={<JobList />} />
           <Route path="/doskilltest" element={<DoTest />} />
           <Route path="/skill-test-result" element={<SkillTestMark />} />
+          <Route path="/admin/companies" element={<AdminCompaniesPage />} />
         </Routes>
         <ChatBox />
       </Router>

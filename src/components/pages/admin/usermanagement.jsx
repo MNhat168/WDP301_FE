@@ -9,26 +9,29 @@ const UserManagement = () => {
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
+    const API_BASE = "http://localhost:5000/api/user";
 
+    const getAuthToken = () => {
+        const user = JSON.parse(localStorage.getItem("user"));
+        return user?.accessToken || "";
+    };
+    const token = getAuthToken();
     useEffect(() => {
         fetchUsers();
         fetchStats();
-    }, [activeTab]); // Fetch users when the activeTab changes
+    }, [activeTab]);
 
     const fetchUsers = async () => {
         try {
             setIsLoading(true);
-            let endpoint = '/admin/users';
-            if (activeTab === 'jobseekers') {
-                endpoint = '/admin/users/jobseekers';
-            } else if (activeTab === 'employers') {
-                endpoint = '/admin/users/employers';
-            }
-
-            const response = await axios.get(`http://localhost:8080${endpoint}`, {
-                withCredentials: true,
+            const response = await axios.get(`${API_BASE}/admin/users`, {
+                params: { role: activeTab === 'all' ? null : activeTab },
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                credentials: "include",
             });
-            setUsers(response.data);
+            setUsers(response.data.result);
         } catch (error) {
             setError('Failed to fetch users');
             console.error('Error:', error);
@@ -39,31 +42,26 @@ const UserManagement = () => {
 
     const fetchStats = async () => {
         try {
-            const response = await axios.get('http://localhost:8080/admin/users/stats', {
-                withCredentials: true,
+            const response = await axios.get(`${API_BASE}/admin/users/stats`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                credentials: "include",
             });
-            setStats(response.data);
+            setStats(response.data.result);
         } catch (error) {
             console.error('Error fetching stats:', error);
         }
     };
 
     const handleToggleBan = async (userId) => {
-        if (!userId) {
-            console.error('User ID is undefined:', userId);
-            setError('Invalid user ID');
-            return;
-        }
-
         try {
-            const response = await axios.post(
-                `http://localhost:8080/admin/users/${userId}/toggle-ban`,
-                {},
-                {
-                    withCredentials: true,
-                }
-            );
-            console.log('Toggle ban response:', response.data);
+            await axios.post(`${API_BASE}/admin/users/${userId}/toggle-ban`, {}, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                credentials: "include",
+            });
             fetchUsers();
             fetchStats();
         } catch (error) {

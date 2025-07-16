@@ -323,7 +323,7 @@ const Header = () => {
                   </Nav.Link>
                   <Nav.Link as={Link} to="/loginemployeer" className="btn btn-primary text-white">
                     <div className="flex items-center">
-                      Post a Job
+                      Post A Job
                     </div>
                   </Nav.Link>
                 </>
