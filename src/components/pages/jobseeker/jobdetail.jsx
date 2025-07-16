@@ -126,8 +126,8 @@ const JobDetail = () => {
 
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.status && data.result) {
-                        setApplicationStatus({ hasApplied: true, ...data.result });
+                    if (data) {
+                        setApplicationStatus(data);
                     }
                 } else if (response.status === 404) {
                     setApplicationStatus({ hasApplied: false, applicationId: null, testCompleted: false, questionExist: false });
