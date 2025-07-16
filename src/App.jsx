@@ -55,11 +55,12 @@ const App = () => {
           <Route path="/admin/home" element={<HomeAdmin />} />
           <Route path="/login" element={<Login />} />
           <Route path="/loginemployeer" element={<LoginEmp />} />
+          <Route path="/cvprofile" element={<CVProfile />} />
           <Route path="/cvgenerate" element={<CVGenerator />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registeremp" element={<RegisterEmployer />} />
           <Route path="/otp-verification" element={<OTPVerification />} />
-          <Route path="/cvprofile" element={<CVProfile />} />
+          <Route path="/listApplyCv/:jobId" element={<ApproveCv />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/changepass" element={<ChangePassword />} />
           <Route path="/jobsearch" element={<JobSearch />} />

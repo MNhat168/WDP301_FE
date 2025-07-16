@@ -1,258 +1,566 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import CVPreview from '../jobseeker/CVPreview';
 import HeaderEmployer from "../../layout/headeremp";
+import toastr from "toastr";
 
-const ApproveCv = () => {
+const ApproveCV = () => {
+  const { jobId } = useParams();
+  const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
-  const [modalData, setModalData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [jobDetails, setJobDetails] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
+  const [scheduleData, setScheduleData] = useState({
+    availableSlots: [],
+    note: ""
+  });
 
-  // Fetch applications data from the server
+  // Calendar state
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDates, setSelectedDates] = useState([]);
+
+  const getAuthToken = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    return user?.accessToken || "";
+  };
+
+  const fetchApplications = async () => {
+    const token = getAuthToken();
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `http://localhost:5000/api/applications/job/${jobId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch applications");
+
+      const data = await response.json();
+      setApplications(data.applications || []);
+      setJobDetails(data.jobDetails || null);
+    } catch (error) {
+      toastr.error(error.message || "Failed to load applications");
+      console.error("Fetch error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update application status (reject only - accept goes through schedule modal)
+  const updateApplicationStatus = async (applicationId, status) => {
+    const token = getAuthToken();
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/applications/${applicationId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: "include",
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to update status");
+
+      const data = await response.json();
+      toastr.success(`Application ${status} successfully`);
+
+      // Refresh applications
+      fetchApplications();
+    } catch (error) {
+      toastr.error(error.message || "Status update failed");
+      console.error("Update error:", error);
+    }
+  };
+
+  const viewCVProfile = (application) => {
+    setSelectedApplication(application);
+  };
+
+  // Close CV view
+  const closeCVView = () => {
+    setSelectedApplication(null);
+  };
+
+  // Open schedule modal
+  const openScheduleModal = (applicationId) => {
+    setSelectedApplicationId(applicationId);
+    setShowScheduleModal(true);
+    setSelectedDates([]);
+    setScheduleData({ availableSlots: [], note: "" });
+  };
+
+  // Close schedule modal
+  const closeScheduleModal = () => {
+    setShowScheduleModal(false);
+    setSelectedDates([]);
+    setScheduleData({ availableSlots: [], note: "" });
+  };
+
+  // Handle schedule input changes
+  const handleScheduleChange = (e) => {
+    const { name, value } = e.target;
+    setScheduleData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Calendar helper functions
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatDate = (date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  const isDateSelected = (date) => {
+    return selectedDates.some(selected => 
+      formatDate(selected.date) === formatDate(date)
+    );
+  };
+
+  const isDatePast = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Handle date selection
+  const handleDateClick = (date) => {
+    if (isDatePast(date)) return;
+
+    const dateStr = formatDate(date);
+    const existingIndex = selectedDates.findIndex(selected => 
+      formatDate(selected.date) === dateStr
+    );
+
+    if (existingIndex >= 0) {
+      // Remove date
+      setSelectedDates(prev => prev.filter((_, index) => index !== existingIndex));
+    } else {
+      // Add date with default time slots
+      setSelectedDates(prev => [...prev, {
+        date: date,
+        timeSlots: ['09:00', '14:00']
+      }]);
+    }
+  };
+
+  // Handle time slot changes
+  const handleTimeSlotChange = (dateIndex, slotIndex, newTime) => {
+    setSelectedDates(prev => {
+      const updated = [...prev];
+      updated[dateIndex].timeSlots[slotIndex] = newTime;
+      return updated;
+    });
+  };
+
+  // Add time slot
+  const addTimeSlot = (dateIndex) => {
+    setSelectedDates(prev => {
+      const updated = [...prev];
+      updated[dateIndex].timeSlots.push('09:00');
+      return updated;
+    });
+  };
+
+  // Remove time slot
+  const removeTimeSlot = (dateIndex, slotIndex) => {
+    setSelectedDates(prev => {
+      const updated = [...prev];
+      updated[dateIndex].timeSlots.splice(slotIndex, 1);
+      return updated;
+    });
+  };
+
+  // Send interview invitation
+  const sendInterviewInvitation = async () => {
+    if (selectedDates.length === 0) {
+      toastr.error("Please select at least one available date");
+      return;
+    }
+
+    const token = getAuthToken();
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/applications/${selectedApplicationId}/schedule`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            availableSlots: selectedDates,
+            note: scheduleData.note
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to send invitation");
+
+      const data = await response.json();
+      toastr.success("Interview invitation sent successfully");
+
+      // Update application status to "accepted"
+      await updateApplicationStatus(selectedApplicationId, "accepted");
+
+      closeScheduleModal();
+    } catch (error) {
+      toastr.error(error.message || "Failed to send invitation");
+      console.error("Invitation error:", error);
+    }
+  };
+
+  // Calendar navigation
+  const navigateMonth = (direction) => {
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() + direction);
+      return newDate;
+    });
+  };
+
   useEffect(() => {
-    fetch('http://localhost:8080/approve-cv/list', { credentials: 'include' })
-      .then(response => response.json())
-      .then(data => {
-        // Convert applicationDate string into Date object
-        const transformedData = data.map(application => ({
-          ...application,
-          applicationDate: new Date(application.applicationDate), // Convert to Date
-        }));
-        setApplications(transformedData);
-      })
-      .catch(error => console.error('Error fetching data:', error));
-  }, []);
+    fetchApplications();
+  }, [jobId]);
 
-
-  const openModal = (data) => {
-    setModalData(data);
-  };
-
-  const closeModal = () => {
-    setModalData(null);
-  };
-
-  // Handle accepting a talent
-  const acceptTalent = (applicationId) => {
-    fetch(`http://localhost:8080/approve-cv/accept?applicationId=${applicationId}`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-      .then(response => response.json())
-      .then(() => {
-        alert('Talent accepted');
-        closeModal();
-        window.location.reload(); // Refresh the list
-      })
-      .catch(error => console.error('Error accepting talent:', error));
-  };
-
-  // Handle rejecting a talent
-  const rejectTalent = (applicationId) => {
-    fetch(`http://localhost:8080/approve-cv/reject?applicationId=${applicationId}`, {
-      method: 'POST',
-      credentials: 'include'
-    })
-      .then(response => response.json())
-      .then(() => {
-        alert('Talent rejected');
-        closeModal();
-        window.location.reload(); // Refresh the list
-      })
-      .catch(error => console.error('Error rejecting talent:', error));
-  };
-
-  return (
-    <>
-      <HeaderEmployer />
-      <div className="container mx-auto mt-5">
-        <div className="overflow-x-auto shadow-md rounded-lg">
-          <table className="table-auto w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-blue-500 text-white">
-                <th className="px-4 py-2">Name</th>
-                <th className="px-4 py-2">Email</th>
-                <th className="px-4 py-2">Phone Number</th>
-                <th className="px-4 py-2">Job Apply</th>
-                <th className="px-4 py-2">Apply Date</th>
-                <th className="px-4 py-2">Test Status</th>
-                <th className="px-4 py-2">Status</th>
-                <th className="px-4 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((data, index) => (
-                <tr
-                  key={index}
-                  className={`hover:bg-gray-100 ${index % 2 === 0 ? "bg-gray-50" : "bg-white"
-                    }`}
-                >
-                  <td className="px-4 py-2">{data.firstName} {data.lastName}</td>
-                  <td className="px-4 py-2">{data.email}</td>
-                  <td className="px-4 py-2">{data.phoneNumber || "TBA"}</td>
-                  <td className="px-4 py-2">{data.jobTitle}</td>
-                  <td className="px-4 py-2">
-                    {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(data.applicationDate)}
-                  </td>
-                  <td className="px-4 py-2">{data.testStatus}</td>
-                  <td className="px-4 py-2">{data.status}</td>
-                  <td className="px-4 py-2 flex gap-2">
-                    <button
-                      className="bg-yellow-500 text-white px-3 py-1 rounded-md hover:bg-yellow-600"
-                      onClick={() => openModal(data)}
-                    >
-                      Detail
-                    </button>
-                    {data.testStatus === "completed" && (
-                      console.log("status:",data),
-                      <a
-                        href={data.testResultLink}
-                        className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View Test Result
-                      </a>
-                    )}
-                  </td>
-                </tr>
+  if (loading) {
+    return (
+      <div className="bg-gray-50 min-h-screen">
+        <HeaderEmployer />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-6"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Modal */}
-      {modalData && (
-        <div
-          className="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center z-50"
-          aria-labelledby="exampleModalLabel"
-          aria-hidden="false"
-        >
-          <div className="bg-white rounded-lg shadow-lg max-w-4xl w-full">
-            <div className="bg-blue-500 text-white px-6 py-3 flex justify-between items-center">
-              <h5 className="text-xl font-semibold">CV Profile</h5>
-              <button
-                type="button"
-                className="text-white text-2xl hover:text-gray-300 focus:outline-none"
-                onClick={closeModal}
-                aria-label="Close"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="px-6 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col items-center">
-                  <img
-                    src={modalData?.avatar ? `http://localhost:8080${modalData.avatar}` : "/default-avatar.jpg"}
-                    alt="Avatar"
-                    className="w-32 h-32 object-cover rounded-full shadow-md mb-4"
-                  />
-                  <h5 className="text-lg font-semibold mb-2">{modalData?.firstName} {modalData?.lastName}</h5>
-                  <p className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                    {modalData?.email || "N/A"}
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <HeaderEmployer />
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Applications for: {jobDetails?.title || "Job"}
+          </h1>
+          <p className="text-gray-600 mt-2">
+            {applications.length} application{applications.length !== 1 ? "s" : ""} received
+          </p>
+        </div>
+
+        {/* Applications Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {applications.map((application) => (
+            <div
+              key={application._id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {application.userId?.fullName || "Applicant"}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {application.userId?.email || "No email"}
                   </p>
-                  <h6 className="mt-4 font-bold text-gray-600">Education:</h6>
-                  <p className="text-sm">{modalData?.education || "N/A"}</p>
-                  <h6 className="mt-4 font-bold text-gray-600">Skills:</h6>
-                  <p className="text-sm">{modalData?.skills || "N/A"}</p>
                 </div>
-                <div className="overflow-x-auto">
-                  <h4 className="text-lg font-semibold mb-4">Profile Details</h4>
-                  <table className="table-auto w-full text-sm border-collapse border border-gray-200">
-                    <tbody>
-                      <tr>
-                        <td className="px-4 py-2 font-medium border border-gray-200">Email</td>
-                        <td className="px-4 py-2 border border-gray-200">{modalData?.email || "N/A"}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 font-medium border border-gray-200">Phone Number</td>
-                        <td className="px-4 py-2 border border-gray-200">{modalData?.phoneNumber || "N/A"}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 font-medium border border-gray-200">Date Of Birth</td>
-                        <td className="px-4 py-2 border border-gray-200">{modalData?.dateOfBirth || "N/A"}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 font-medium border border-gray-200">City</td>
-                        <td className="px-4 py-2 border border-gray-200">{modalData?.city || "N/A"}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 font-medium border border-gray-200">Experience</td>
-                        <td className="px-4 py-2 border border-gray-200">{modalData?.experience || "N/A"}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2 font-medium">Link Pdf</td>
-                        <td className="px-4 py-2">
-                          {modalData?.linkPdf ? (
-                            <div>
-                              <button
-                                className="bg-blue-500 text-white py-2 px-4 rounded-lg mr-2"
-                                onClick={() => window.open(
-                                  modalData.linkPdf.startsWith('http')
-                                    ? modalData.linkPdf
-                                    : `http://localhost:8080${modalData.linkPdf}`,
-                                  '_blank'
-                                )}
-                              >
-                                Show More
-                              </button>
-                              <button
-                                className="bg-green-500 text-white py-2 px-4 rounded-lg"
-                                onClick={() => {
-                                  const fileUrl = modalData.linkPdf.startsWith('http')
-                                    ? modalData.linkPdf
-                                    : `http://localhost:8080${modalData.linkPdf}`;
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${application.status === "pending"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : application.status === "accepted"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                    }`}
+                >
+                  {application.status.charAt(0).toUpperCase() +
+                    application.status.slice(1)}
+                </span>
+              </div>
 
-                                  fetch(fileUrl)
-                                    .then(response => response.blob())
-                                    .then(blob => {
-                                      const link = document.createElement('a');
-                                      const url = URL.createObjectURL(blob);
-                                      link.href = url;
-                                      link.setAttribute('download', 'application.pdf');
-                                      document.body.appendChild(link);
-                                      link.click();
-                                      document.body.removeChild(link);
-                                      URL.revokeObjectURL(url);
-                                    })
-                                    .catch(error => console.error('File download failed:', error));
-                                }}
-                              >
-                                Download
-                              </button>
-                            </div>
-                          ) : (
-                            'N/A'
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+              <div className="mb-4">
+                <p className="text-gray-700">
+                  Applied on:{" "}
+                  {new Date(application.applicationDate).toLocaleDateString()}
+                </p>
+                <p className="text-gray-700">
+                  CV Completion:{" "}
+                  <span className="font-semibold">
+                    {application.cvProfileId?.completionPercentage || 0}%
+                  </span>
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => viewCVProfile(application)}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm"
+                >
+                  View CV
+                </button>
+
+                {application.status === "pending" && (
+                  <>
+                    <button
+                      onClick={() => openScheduleModal(application._id)}
+                      className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors text-sm"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => updateApplicationStatus(application._id, "rejected")}
+                      className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors text-sm"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-            <div className="bg-gray-100 px-6 py-3 flex justify-end space-x-4">
-              {modalData?.status === "pending" && (
-                <>
-                  <button
-                    className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600"
-                    onClick={() => rejectTalent(modalData.applicationId)}
-                  >
-                    Reject Talent
-                  </button>
-                  <button
-                    className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-                    onClick={() => acceptTalent(modalData.applicationId)}
-                  >
-                    Accept Talent
-                  </button>
-                </>
-              )}
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {applications.length === 0 && (
+          <div className="text-center py-12">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">
+              No applications yet
+            </h3>
+            <p className="mt-1 text-gray-500">
+              Applicants will appear here when they apply to this job.
+            </p>
+            <div className="mt-6">
+              <button
+                onClick={() => navigate(`/employer/job/${jobId}`)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+              >
+                View Job Details
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* CV Profile Modal */}
+      {selectedApplication && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">CV Profile</h2>
+                <button
+                  onClick={closeCVView}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <CVPreview
+                cvData={selectedApplication.cvProfileId}
+                template="modern"
+              />
             </div>
           </div>
         </div>
       )}
-    </>
-  );
-}
 
-export default ApproveCv;
+      {/* Schedule Modal with Calendar */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">Schedule Interview</h2>
+            
+            {/* Calendar */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => navigateMonth(-1)}
+                  className="p-2 hover:bg-gray-100 rounded"
+                >
+                  ←
+                </button>
+                <h3 className="text-lg font-semibold">
+                  {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h3>
+                <button
+                  onClick={() => navigateMonth(1)}
+                  className="p-2 hover:bg-gray-100 rounded"
+                >
+                  →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                  <div key={day} className="text-center text-sm font-medium text-gray-500 p-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {/* Empty cells for days before month starts */}
+                {Array.from({ length: getFirstDayOfMonth(currentDate) }).map((_, index) => (
+                  <div key={index} className="p-2"></div>
+                ))}
+                
+                {/* Days of the month */}
+                {Array.from({ length: getDaysInMonth(currentDate) }).map((_, index) => {
+                  const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), index + 1);
+                  const isSelected = isDateSelected(date);
+                  const isPast = isDatePast(date);
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleDateClick(date)}
+                      disabled={isPast}
+                      className={`p-2 text-sm rounded hover:bg-gray-100 ${
+                        isSelected 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : isPast 
+                            ? 'text-gray-300 cursor-not-allowed' 
+                            : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selected Dates and Time Slots */}
+            {selectedDates.length > 0 && (
+              <div className="mb-4">
+                <h4 className="font-medium mb-2">Selected Available Slots:</h4>
+                <div className="space-y-3">
+                  {selectedDates.map((selectedDate, dateIndex) => (
+                    <div key={dateIndex} className="border rounded-lg p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">
+                          {selectedDate.date.toLocaleDateString()}
+                        </span>
+                        <button
+                          onClick={() => handleDateClick(selectedDate.date)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove Date
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {selectedDate.timeSlots.map((time, slotIndex) => (
+                          <div key={slotIndex} className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={time}
+                              onChange={(e) => handleTimeSlotChange(dateIndex, slotIndex, e.target.value)}
+                              className="p-1 border border-gray-300 rounded text-sm"
+                            />
+                            {selectedDate.timeSlots.length > 1 && (
+                              <button
+                                onClick={() => removeTimeSlot(dateIndex, slotIndex)}
+                                className="text-red-600 hover:text-red-800 text-sm"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => addTimeSlot(dateIndex)}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          + Add Time Slot
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Additional Notes */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Additional Notes
+              </label>
+              <textarea
+                name="note"
+                value={scheduleData.note}
+                onChange={handleScheduleChange}
+                className="w-full p-2 border border-gray-300 rounded-md"
+                rows="3"
+                placeholder="Add meeting link, location, or other details"
+              ></textarea>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closeScheduleModal}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendInterviewInvitation}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                disabled={selectedDates.length === 0}
+              >
+                Send Invitation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ApproveCV;
