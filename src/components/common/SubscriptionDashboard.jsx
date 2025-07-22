@@ -3,7 +3,8 @@ import { useSubscriptionData } from '../../hooks/useSubscription.jsx';
 import SubscriptionBadge from './SubscriptionBadge';
 import UsageMeter from './UsageMeter';
 import UpgradeModal from './UpgradeModal';
-import { FiSettings, FiAward, FiRefreshCw, FiCalendar, FiTrendingUp } from 'react-icons/fi';
+import UsageStats from './UsageStats';
+import { FiSettings, FiAward, FiRefreshCw, FiCalendar, FiTrendingUp, FiBarChart } from 'react-icons/fi';
 
 const SubscriptionDashboard = ({ 
     compact = false,
@@ -21,6 +22,7 @@ const SubscriptionDashboard = ({
     } = useSubscriptionData();
 
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('overview');
 
     if (loading) {
         return (
@@ -53,10 +55,6 @@ const SubscriptionDashboard = ({
         );
     }
 
-    if (!subscriptionData) {
-        return null;
-    }
-
     const handleUpgrade = (targetTier) => {
         setShowUpgradeModal(false);
         // Here you would typically redirect to upgrade/payment page
@@ -82,11 +80,11 @@ const SubscriptionDashboard = ({
                     )}
                 </div>
                 
-                <UsageMeter
-                    type="applications"
-                    used={applicationUsage.used}
-                    limit={applicationUsage.limit}
-                    size="sm"
+                {/* Use compact UsageStats instead of custom UsageMeter */}
+                <UsageStats 
+                    className="mt-4"
+                    showDetailed={false}
+                    onUpgradeClick={() => setShowUpgradeModal(true)}
                 />
 
                 <UpgradeModal
@@ -110,10 +108,10 @@ const SubscriptionDashboard = ({
                             <FiAward className="text-white text-xl" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Subscription Plan</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">Subscription Dashboard</h3>
                             <div className="flex items-center space-x-2 mt-1">
                                 <SubscriptionBadge tier={currentTier} size="md" />
-                                {subscriptionData.subscription.isActive && (
+                                {subscriptionData?.subscription?.isActive && (
                                     <span className="text-sm text-green-600 font-medium">Active</span>
                                 )}
                             </div>
@@ -140,116 +138,181 @@ const SubscriptionDashboard = ({
                 </div>
             </div>
 
+            {/* Navigation Tabs */}
+            <div className="border-b border-gray-200">
+                <nav className="flex space-x-8 px-6">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: FiAward },
+                        { id: 'usage', label: 'Usage Stats', icon: FiBarChart },
+                        { id: 'features', label: 'Features', icon: FiSettings }
+                    ].map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`flex items-center space-x-2 py-4 text-sm font-medium border-b-2 transition-colors ${
+                                    activeTab === tab.id
+                                        ? 'border-blue-500 text-blue-600'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }`}
+                            >
+                                <Icon className="h-4 w-4" />
+                                <span>{tab.label}</span>
+                            </button>
+                        );
+                    })}
+                </nav>
+            </div>
+
             {/* Content */}
             <div className="p-6">
-                {/* Subscription Info */}
-                {subscriptionData.subscription.isActive && (
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                                <FiCalendar className="h-4 w-4 text-blue-500" />
-                                <span className="text-sm font-medium text-blue-900">
-                                    {subscriptionData.subscription.daysRemaining > 0 
-                                        ? `${subscriptionData.subscription.daysRemaining} days remaining`
-                                        : 'Expired'
-                                    }
-                                </span>
+                {/* Overview Tab */}
+                {activeTab === 'overview' && (
+                    <div className="space-y-6">
+                        {/* Subscription Info */}
+                        {subscriptionData?.subscription?.isActive && (
+                            <div className="p-4 bg-blue-50 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                        <FiCalendar className="h-4 w-4 text-blue-500" />
+                                        <span className="text-sm font-medium text-blue-900">
+                                            {subscriptionData.subscription.daysRemaining > 0 
+                                                ? `${subscriptionData.subscription.daysRemaining} days remaining`
+                                                : 'Expired'
+                                            }
+                                        </span>
+                                    </div>
+                                    <span className="text-xs text-blue-600">
+                                        Expires: {new Date(subscriptionData.subscription.expiryDate).toLocaleDateString()}
+                                    </span>
+                                </div>
                             </div>
-                            <span className="text-xs text-blue-600">
-                                Expires: {new Date(subscriptionData.subscription.expiryDate).toLocaleDateString()}
-                            </span>
-                        </div>
-                    </div>
-                )}
+                        )}
 
-                {/* Usage Metrics */}
-                <div className="space-y-6">
-                    <UsageMeter
-                        type="applications"
-                        used={subscriptionData.applications.used}
-                        limit={subscriptionData.applications.limit}
-                        size="md"
-                    />
-
-                    {subscriptionData.jobPostings.limit > 0 && (
-                        <UsageMeter
-                            type="jobPostings"
-                            used={subscriptionData.jobPostings.used}
-                            limit={subscriptionData.jobPostings.limit}
-                            size="md"
+                        {/* Quick Usage Overview */}
+                        <UsageStats 
+                            className=""
+                            showDetailed={false}
+                            onUpgradeClick={() => setShowUpgradeModal(true)}
                         />
-                    )}
 
-                    <UsageMeter
-                        type="favorites"
-                        used={subscriptionData.favorites.count}
-                        limit={subscriptionData.favorites.limit}
-                        size="md"
-                    />
-                </div>
-
-                {/* Analytics Summary */}
-                {subscriptionData.analytics && (
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                            <FiTrendingUp className="mr-2 h-4 w-4" />
-                            Your Activity
-                        </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-semibold text-gray-900">
-                                    {subscriptionData.analytics.profileViews || 0}
+                        {/* Analytics Summary */}
+                        {subscriptionData?.analytics && (
+                            <div className="pt-6 border-t border-gray-200">
+                                <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                                    <FiTrendingUp className="mr-2 h-4 w-4" />
+                                    Your Activity
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                        <div className="text-lg font-semibold text-gray-900">
+                                            {subscriptionData.analytics.profileViews || 0}
+                                        </div>
+                                        <div className="text-xs text-gray-500">Profile Views</div>
+                                    </div>
+                                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                        <div className="text-lg font-semibold text-gray-900">
+                                            {subscriptionData.analytics.totalJobApplications || 0}
+                                        </div>
+                                        <div className="text-xs text-gray-500">Total Applications</div>
+                                    </div>
                                 </div>
-                                <div className="text-xs text-gray-500">Profile Views</div>
                             </div>
-                            <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                <div className="text-lg font-semibold text-gray-900">
-                                    {subscriptionData.analytics.totalJobApplications || 0}
-                                </div>
-                                <div className="text-xs text-gray-500">Total Applications</div>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 )}
 
-                {/* Features List */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Current Plan Features</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                        <div className="flex items-center space-x-2 text-sm">
-                            <div className={`w-2 h-2 rounded-full ${
-                                subscriptionData.applications.limit === -1 ? 'bg-green-500' : 'bg-blue-500'
-                            }`}></div>
-                            <span className="text-gray-600">
-                                {subscriptionData.applications.limit === -1 
-                                    ? 'Unlimited job applications'
-                                    : `${subscriptionData.applications.limit} applications per month`
-                                }
-                            </span>
-                        </div>
-                        
-                        {subscriptionData.features.hasPriorityListing && (
-                            <div className="flex items-center space-x-2 text-sm">
-                                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                                <span className="text-gray-600">Priority job listings</span>
-                            </div>
-                        )}
-                        
-                        {subscriptionData.features.hasAdvancedFilters && (
-                            <div className="flex items-center space-x-2 text-sm">
-                                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                                <span className="text-gray-600">Advanced search filters</span>
-                            </div>
-                        )}
-
-                        {subscriptionData.features.canDirectMessage && (
-                            <div className="flex items-center space-x-2 text-sm">
-                                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                                <span className="text-gray-600">Direct messaging</span>
-                            </div>
-                        )}
+                {/* Usage Stats Tab */}
+                {activeTab === 'usage' && (
+                    <div>
+                        <UsageStats 
+                            className=""
+                            showDetailed={true}
+                            period="current"
+                            onUpgradeClick={() => setShowUpgradeModal(true)}
+                        />
                     </div>
-                </div>
+                )}
+
+                {/* Features Tab */}
+                {activeTab === 'features' && (
+                    <div className="space-y-6">
+                        <h4 className="text-lg font-medium text-gray-900">Current Plan Features</h4>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="p-4 border border-gray-200 rounded-lg">
+                                <div className="flex items-center space-x-3 mb-3">
+                                    <div className={`w-3 h-3 rounded-full ${
+                                        subscriptionData?.applications?.limit === -1 ? 'bg-green-500' : 'bg-blue-500'
+                                    }`}></div>
+                                    <h5 className="font-medium text-gray-900">Job Applications</h5>
+                                </div>
+                                <p className="text-sm text-gray-600">
+                                    {subscriptionData?.applications?.limit === -1 
+                                        ? 'Unlimited job applications per month'
+                                        : `${subscriptionData?.applications?.limit || 5} applications per month`
+                                    }
+                                </p>
+                            </div>
+                            
+                            {subscriptionData?.features?.hasPriorityListing && (
+                                <div className="p-4 border border-gray-200 rounded-lg">
+                                    <div className="flex items-center space-x-3 mb-3">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                        <h5 className="font-medium text-gray-900">Priority Listings</h5>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Your job applications appear at the top of employer lists
+                                    </p>
+                                </div>
+                            )}
+                            
+                            {subscriptionData?.features?.hasAdvancedFilters && (
+                                <div className="p-4 border border-gray-200 rounded-lg">
+                                    <div className="flex items-center space-x-3 mb-3">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                        <h5 className="font-medium text-gray-900">Advanced Search</h5>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Access to advanced search filters and job matching
+                                    </p>
+                                </div>
+                            )}
+
+                            {subscriptionData?.features?.canDirectMessage && (
+                                <div className="p-4 border border-gray-200 rounded-lg">
+                                    <div className="flex items-center space-x-3 mb-3">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                        <h5 className="font-medium text-gray-900">Direct Messaging</h5>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        Message employers directly to stand out from other candidates
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Show what they're missing if not premium */}
+                            {currentTier === 'free' && (
+                                <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                                    <div className="text-center">
+                                        <h5 className="font-medium text-gray-700 mb-2">Unlock More Features</h5>
+                                        <p className="text-sm text-gray-600 mb-4">
+                                            Upgrade to access premium features like unlimited applications, priority support, and advanced analytics.
+                                        </p>
+                                        <button
+                                            onClick={() => setShowUpgradeModal(true)}
+                                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium"
+                                        >
+                                            <FiAward className="mr-2 h-4 w-4" />
+                                            View Upgrade Options
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             <UpgradeModal

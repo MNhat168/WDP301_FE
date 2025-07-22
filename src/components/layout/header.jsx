@@ -163,10 +163,10 @@ const Header = () => {
   // Usage indicator component  
   const UsageIndicator = () => {
     if (!usageStats || !user) return null;
-
+    console.log(usageStats);
     // Add safe guards for usage data
-    const savedJobsUsage = usageStats.savedJobs || { used: 0, limit: 0 };
-    const applicationsUsage = usageStats.jobApplications || { used: 0, limit: 0 };
+    const savedJobsUsage = usageStats.user.actualCounts || { used: 0, limit: 0 };
+    const applicationsUsage = usageStats.subscription.applications || { used: 0, limit: 0 };
 
     const getUsageColor = (used, limit) => {
       if (!used || !limit || limit === -1) return 'text-green-600';
@@ -197,15 +197,15 @@ const Header = () => {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Job Applications</span>
-              <span className={`text-sm font-semibold ${getUsageColor(applicationsUsage.used, applicationsUsage.limit)}`}>
-                {formatUsage(applicationsUsage.used, applicationsUsage.limit)}
+              <span className={`text-sm font-semibold ${getUsageColor(applicationsUsage.actual, applicationsUsage.limit)}`}>
+                {formatUsage(applicationsUsage.actual, applicationsUsage.limit)}
               </span>
             </div>
             
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Saved Jobs</span>
-              <span className={`text-sm font-semibold ${getUsageColor(savedJobsUsage.used, savedJobsUsage.limit)}`}>
-                {formatUsage(savedJobsUsage.used, savedJobsUsage.limit)}
+              <span className={`text-sm font-semibold ${getUsageColor(savedJobsUsage.favoriteJobs, savedJobsUsage.limit)}`}>
+                {formatUsage(savedJobsUsage.favoriteJobs, savedJobsUsage.limit)}
               </span>
             </div>
 

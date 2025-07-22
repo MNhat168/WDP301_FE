@@ -8,8 +8,8 @@ const PackagePayment = () => {
     const navigate = useNavigate();
     const [paymentDetails, setPaymentDetails] = useState({
         amount: 0,
-        bankCode: '',
-        language: 'vn'
+        paymentMethod: 'paypal',
+        currency: 'USD'
     });
     const BanPopup = useBanCheck();
     
@@ -20,18 +20,21 @@ const PackagePayment = () => {
     const fetchPackagePrice = async () => {
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const response = await fetch(`http://localhost:8080/upgrade?idPackage=${packageId}`, {
+            const response = await fetch(`http://localhost:5000/api/subscriptions/plans`, {
                 headers: {
-                    'Authorization': `Bearer ${user?.token}`
+                    'Authorization': `Bearer ${user?.token || user?.accessToken}`
                 }
             });
             
             if (response.ok) {
                 const data = await response.json();
-                setPaymentDetails(prev => ({
-                    ...prev,
-                    amount: data.price
-                }));
+                const selectedPackage = data.result.find(pkg => pkg._id === packageId);
+                if (selectedPackage) {
+                    setPaymentDetails(prev => ({
+                        ...prev,
+                        amount: selectedPackage.pricing?.monthly || selectedPackage.price || 0
+                    }));
+                }
             }
         } catch (error) {
             console.error('Error fetching package price:', error);
@@ -50,25 +53,36 @@ const PackagePayment = () => {
         e.preventDefault();
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const response = await fetch('http://localhost:8080/payment', {
+            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${user?.token}`
+                    'Authorization': `Bearer ${user?.token || user?.accessToken}`
                 },
-                body: JSON.stringify(paymentDetails)
+                body: JSON.stringify({
+                    subscriptionId: packageId,
+                    paymentMethod: paymentDetails.paymentMethod,
+                    billingPeriod: 'monthly'
+                })
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.code === '00') {
-                    window.location.href = data.data; // Redirect to VNPAY payment page
+            const data = await response.json();
+            
+            if (response.ok && data.status) {
+                if (data.result.paymentUrl) {
+                    // Redirect to PayPal payment page
+                    window.location.href = data.result.paymentUrl;
                 } else {
-                    alert(data.message);
+                    // Free subscription activated immediately
+                    alert('Subscription activated successfully!');
+                    navigate('/packages');
                 }
+            } else {
+                alert(data.message || 'Subscription failed');
             }
         } catch (error) {
             console.error('Error processing payment:', error);
+            alert('Payment processing failed. Please try again.');
         }
     };
 
@@ -99,66 +113,66 @@ const PackagePayment = () => {
                                 <label className="flex items-center space-x-3">
                                     <input
                                         type="radio"
-                                        name="bankCode"
-                                        value=""
-                                        checked={paymentDetails.bankCode === ''}
+                                        name="paymentMethod"
+                                        value="paypal"
+                                        checked={paymentDetails.paymentMethod === 'paypal'}
                                         onChange={handleInputChange}
                                         className="h-4 w-4 text-blue-600"
                                     />
-                                    <span>VNPAYQR Payment Gateway</span>
+                                    <span>PayPal</span>
                                 </label>
 
                                 <label className="flex items-center space-x-3">
                                     <input
                                         type="radio"
-                                        name="bankCode"
-                                        value="VNBANK"
-                                        checked={paymentDetails.bankCode === 'VNBANK'}
+                                        name="paymentMethod"
+                                        value="paypal_credit"
+                                        checked={paymentDetails.paymentMethod === 'paypal_credit'}
                                         onChange={handleInputChange}
                                         className="h-4 w-4 text-blue-600"
                                     />
-                                    <span>Domestic ATM Card/Account</span>
+                                    <span>PayPal Credit</span>
                                 </label>
 
                                 <label className="flex items-center space-x-3">
                                     <input
                                         type="radio"
-                                        name="bankCode"
-                                        value="INTCARD"
-                                        checked={paymentDetails.bankCode === 'INTCARD'}
+                                        name="paymentMethod"
+                                        value="card"
+                                        checked={paymentDetails.paymentMethod === 'card'}
                                         onChange={handleInputChange}
                                         className="h-4 w-4 text-blue-600"
                                     />
-                                    <span>International Card</span>
+                                    <span>Credit/Debit Card via PayPal</span>
                                 </label>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-                            <h3 className="text-lg font-medium">Select Language</h3>
+                            <h3 className="text-lg font-medium">Select Currency</h3>
                             <div className="space-y-2">
                                 <label className="flex items-center space-x-3">
                                     <input
                                         type="radio"
-                                        name="language"
-                                        value="vn"
-                                        checked={paymentDetails.language === 'vn'}
+                                        name="currency"
+                                        value="USD"
+                                        checked={paymentDetails.currency === 'USD'}
                                         onChange={handleInputChange}
                                         className="h-4 w-4 text-blue-600"
                                     />
-                                    <span>Tiếng Việt</span>
+                                    <span>USD</span>
                                 </label>
 
                                 <label className="flex items-center space-x-3">
                                     <input
                                         type="radio"
-                                        name="language"
-                                        value="en"
-                                        checked={paymentDetails.language === 'en'}
+                                        name="currency"
+                                        value="VND"
+                                        checked={paymentDetails.currency === 'VND'}
                                         onChange={handleInputChange}
                                         className="h-4 w-4 text-blue-600"
                                     />
-                                    <span>English</span>
+                                    <span>VND</span>
                                 </label>
                             </div>
                         </div>

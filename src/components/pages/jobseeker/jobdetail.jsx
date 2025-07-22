@@ -12,7 +12,7 @@ import {
     FiAward, FiFileText, FiArrowLeft, FiUsers, FiEye, FiStar,
     FiTrendingUp, FiGlobe, FiMail, FiPhone, FiBookmark,
     FiTarget, FiShield, FiZap, FiMoreVertical, FiFlag,
-    FiExternalLink, FiCheck
+    FiExternalLink, FiCheck, FiInfo
 } from 'react-icons/fi';
 import { LuBuilding } from "react-icons/lu";
 
@@ -278,17 +278,17 @@ const JobDetail = () => {
     if (loading) return <JobDetailSkeleton />;
 
     if (error) return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
             <Header />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
                 <div className="text-center">
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 max-w-md mx-auto">
+                    <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-12 max-w-md mx-auto">
                         <FiAlertCircle className="mx-auto text-red-500 text-6xl mb-6" />
                         <h2 className="text-2xl font-bold text-gray-900 mb-4">Job not found</h2>
                         <p className="text-gray-600 mb-8">{error}</p>
                         <button
                             onClick={() => navigate('/jobsearch')}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-semibold rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg"
                         >
                             Back to Search
                         </button>
@@ -299,7 +299,7 @@ const JobDetail = () => {
     );
 
     if (!job) return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
             <Header />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
                 <div className="text-center text-xl text-gray-600">Job not found</div>
@@ -385,7 +385,7 @@ const JobDetail = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
             <Header />
 
             {/* Breadcrumb */}
@@ -393,35 +393,35 @@ const JobDetail = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <button
                         onClick={() => navigate(-1)}
-                        className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+                        className="inline-flex items-center text-base font-medium text-blue-600 hover:text-blue-800 bg-blue-50 rounded-xl px-4 py-2 shadow-sm"
                     >
-                        <FiArrowLeft className="mr-2 h-4 w-4" />
+                        <FiArrowLeft className="mr-2 h-5 w-5" />
                         Back to results
                     </button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Content */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 space-y-8">
                         {/* Job Header Card */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                            <div className="flex items-start justify-between mb-4">
+                        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 mb-4">
+                            <div className="flex flex-col md:flex-row items-start justify-between mb-6 gap-6">
                                 <div className="flex-1">
-                                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
                                         {job.title}
                                     </h1>
-                                    <div className="flex items-center text-sm text-gray-500 mb-3">
+                                    <div className="flex flex-wrap items-center text-base text-gray-500 mb-4 gap-2">
                                         <Link
                                             to={`/company/${job.companyId?._id}`}
-                                            className="text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                            className="text-blue-600 hover:text-blue-800 font-semibold mr-3"
                                         >
                                             {job.companyId?.companyName || 'Company'}
                                         </Link>
                                         <span className="mr-3">•</span>
                                         <span className="flex items-center mr-3">
-                                            <FiMapPin className="mr-1 h-4 w-4" />
+                                            <FiMapPin className="mr-1 h-5 w-5" />
                                             {job.location || 'Remote'}
                                         </span>
                                         <span className="mr-3">•</span>
@@ -429,17 +429,17 @@ const JobDetail = () => {
                                     </div>
 
                                     {/* Job Type & Details */}
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <div className="flex flex-wrap gap-3 mb-4">
+                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-blue-100 to-blue-300 text-blue-800 shadow">
                                             {job.jobType || 'Full-time'}
                                         </span>
                                         {job.salary && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-green-100 to-green-300 text-green-800 shadow">
                                                 ${job.salary.toLocaleString()}
                                             </span>
                                         )}
                                         {job.experienceYears && (
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-purple-100 to-purple-300 text-purple-800 shadow">
                                                 {job.experienceYears} years exp
                                             </span>
                                         )}
@@ -448,11 +448,11 @@ const JobDetail = () => {
                                     {/* Application Stats */}
                                     <div className="flex items-center text-sm text-gray-500 space-x-6">
                                         <span className="flex items-center">
-                                            <FiUsers className="mr-1 h-4 w-4" />
+                                            <FiUsers className="mr-1 h-5 w-5" />
                                             {job.applicantCount || Math.floor(Math.random() * 50) + 10} applicants
                                         </span>
                                         <span className="flex items-center">
-                                            <FiEye className="mr-1 h-4 w-4" />
+                                            <FiEye className="mr-1 h-5 w-5" />
                                             {Math.floor(Math.random() * 500) + 100} views
                                         </span>
                                     </div>
@@ -460,18 +460,18 @@ const JobDetail = () => {
 
                                 {/* Company Logo */}
                                 {job.companyId?.url && (
-                                    <div className="ml-6 flex-shrink-0">
+                                    <div className="ml-0 md:ml-6 flex-shrink-0">
                                         <img
                                             src={job.companyId.url}
                                             alt="Company logo"
-                                            className="w-60 h-40 rounded-lg object-cover border border-gray-200"
+                                            className="w-32 h-32 rounded-2xl object-cover border-2 border-blue-200 shadow-lg"
                                         />
                                     </div>
                                 )}
                             </div>
 
                             {/* Action Buttons */}
-                            <div className="flex items-center space-x-3 pt-4 border-t border-gray-200">
+                            <div className="flex items-center space-x-4 pt-4 border-t border-gray-100">
                                 <div className="flex-1 max-w-xs">
                                     {renderActionButtons()}
                                 </div>
@@ -482,24 +482,26 @@ const JobDetail = () => {
                                     onAuthRequired={handleAuthRequired}
                                     onLimitReached={handleLimitReached}
                                     variant="icon"
-                                    size="md"
+                                    size="lg"
                                     showTooltip={true}
                                 />
                                 <button
                                     onClick={handleShareJob}
-                                    className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    className="inline-flex items-center px-4 py-3 border border-gray-200 text-base font-semibold rounded-xl text-gray-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow"
                                 >
-                                    <FiShare2 className="h-4 w-4" />
+                                    <FiShare2 className="h-5 w-5" />
                                 </button>
-                                <button className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                    <FiMoreVertical className="h-4 w-4" />
+                                <button className="inline-flex items-center px-4 py-3 border border-gray-200 text-base font-semibold rounded-xl text-gray-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow">
+                                    <FiMoreVertical className="h-5 w-5" />
                                 </button>
                             </div>
                         </div>
 
                         {/* Job Description */}
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                            <h2 className="text-lg font-semibold text-gray-900 mb-4">About the job</h2>
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-4">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <FiFileText className="text-blue-500" /> About the job
+                            </h2>
                             <div className="prose prose-sm max-w-none text-gray-700">
                                 <div dangerouslySetInnerHTML={{
                                     __html: job.description?.replace(/\n/g, '<br />') || 'No description provided.'
@@ -509,13 +511,15 @@ const JobDetail = () => {
 
                         {/* Requirements */}
                         {job.requirements && job.requirements.length > 0 && (
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                                <h2 className="text-lg font-semibold text-gray-900 mb-4">Requirements</h2>
-                                <ul className="space-y-2">
+                            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 mb-4">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <FiTarget className="text-purple-500" /> Requirements
+                                </h2>
+                                <ul className="space-y-3">
                                     {job.requirements.map((req, i) => (
                                         <li key={i} className="flex items-start">
-                                            <FiCheck className="h-4 w-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                                            <span className="text-gray-700 text-sm">{req}</span>
+                                            <FiCheck className="h-5 w-5 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                                            <span className="text-gray-700 text-base">{req}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -524,13 +528,15 @@ const JobDetail = () => {
 
                         {/* Benefits */}
                         {job.benefits && job.benefits.length > 0 && (
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <h2 className="text-lg font-semibold text-gray-900 mb-4">Benefits</h2>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                                <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <FiAward className="text-yellow-500" /> Benefits
+                                </h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {job.benefits.map((benefit, i) => (
                                         <div key={i} className="flex items-center">
-                                            <FiCheck className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                                            <span className="text-gray-700 text-sm">{benefit}</span>
+                                            <FiCheck className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                                            <span className="text-gray-700 text-base">{benefit}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -539,104 +545,106 @@ const JobDetail = () => {
                     </div>
 
                     {/* Sidebar */}
-                    <div className="lg:col-span-1">
-                        <div className="sticky top-6 space-y-6">
-                            {/* Job Details Card */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Job details</h3>
-                                <div className="space-y-4">
+                    <div className="lg:col-span-1 space-y-8">
+                        {/* Job Details Card */}
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                <FiInfo className="text-blue-400" /> Job details
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="flex items-start">
+                                    <FiDollarSign className="h-6 w-6 text-green-400 mt-1 mr-4 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-900">Salary</p>
+                                        <p className="text-base text-gray-500">
+                                            {job.salary && job.minSalary !== undefined && job.maxSalary !== undefined ? `$${job.minSalary.toLocaleString()} - $${job.maxSalary.toLocaleString()} USD` : 'Not disclosed'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <FiBriefcase className="h-6 w-6 text-blue-400 mt-1 mr-4 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-900">Job type</p>
+                                        <p className="text-base text-gray-500">{job.jobType || 'Full-time'}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start">
+                                    <FiAward className="h-6 w-6 text-yellow-400 mt-1 mr-4 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-base font-semibold text-gray-900">Experience level</p>
+                                        <p className="text-base text-gray-500">
+                                            {job.experienceYears ? `${job.experienceYears} years` : 'Not specified'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {job.endDate && (
                                     <div className="flex items-start">
-                                        <FiDollarSign className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
+                                        <FiClock className="h-6 w-6 text-purple-400 mt-1 mr-4 flex-shrink-0" />
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">Salary</p>
-                                            <p className="text-sm text-gray-500">
-                                                {job.salary ? `$${job.minSalary.toLocaleString()} - $${job.maxSalary.toLocaleString()}  USD` : 'Not disclosed'}
+                                            <p className="text-base font-semibold text-gray-900">Application deadline</p>
+                                            <p className="text-base text-gray-500">
+                                                {new Date(job.endDate).toLocaleDateString()}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-start">
-                                        <FiBriefcase className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">Job type</p>
-                                            <p className="text-sm text-gray-500">{job.jobType || 'Full-time'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start">
-                                        <FiAward className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">Experience level</p>
-                                            <p className="text-sm text-gray-500">
-                                                {job.experienceYears ? `${job.experienceYears} years` : 'Not specified'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {job.endDate && (
-                                        <div className="flex items-start">
-                                            <FiClock className="h-5 w-5 text-gray-400 mt-0.5 mr-3 flex-shrink-0" />
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-900">Application deadline</p>
-                                                <p className="text-sm text-gray-500">
-                                                    {new Date(job.endDate).toLocaleDateString()}
-                                                </p>
-                                            </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Company Card */}
+                        {job.companyId && (
+                            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                    <LuBuilding className="text-blue-400" /> About the company
+                                </h3>
+                                <div className="flex items-start space-x-4 mb-4">
+                                    {job.companyId.url ? (
+                                        <img
+                                            src={job.companyId.url}
+                                            alt="Company logo"
+                                            className="w-16 h-16 rounded-2xl object-cover border-2 border-blue-200 flex-shrink-0 shadow"
+                                        />
+                                    ) : (
+                                        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                            <LuBuilding className="h-8 w-8 text-gray-400" />
                                         </div>
                                     )}
-                                </div>
-                            </div>
-
-                            {/* Company Card */}
-                            {job.companyId && (
-                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">About the company</h3>
-                                    <div className="flex items-start space-x-3 mb-4">
-                                        {job.companyId.url ? (
-                                            <img
-                                                src={job.companyId.url}
-                                                alt="Company logo"
-                                                className="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
-                                            />
-                                        ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                <LuBuilding className="h-6 w-6 text-gray-400" />
+                                    <div className="flex-1">
+                                        <h4 className="text-lg font-semibold text-gray-900">
+                                            {job.companyId.companyName}
+                                        </h4>
+                                        <p className="text-base text-gray-500">{job.companyId.address}</p>
+                                        <div className="flex items-center mt-2">
+                                            <div className="flex items-center">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <FiStar
+                                                        key={i}
+                                                        className={`h-4 w-4 ${i < 4 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                                    />
+                                                ))}
                                             </div>
-                                        )}
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-semibold text-gray-900">
-                                                {job.companyId.companyName}
-                                            </h4>
-                                            <p className="text-sm text-gray-500">{job.companyId.address}</p>
-                                            <div className="flex items-center mt-1">
-                                                <div className="flex items-center">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <FiStar
-                                                            key={i}
-                                                            className={`h-3 w-3 ${i < 4 ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <span className="text-xs text-gray-500 ml-1">
-                                                    ({Math.floor(Math.random() * 500) + 100} reviews)
-                                                </span>
-                                            </div>
+                                            <span className="text-xs text-gray-500 ml-2">
+                                                ({Math.floor(Math.random() * 500) + 100} reviews)
+                                            </span>
                                         </div>
                                     </div>
-                                    <Link
-                                        to={`/company/${job.companyId._id}`}
-                                        className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
-                                    >
-                                        View company page
-                                        <FiExternalLink className="ml-1 h-3 w-3" />
-                                    </Link>
                                 </div>
-                            )}
-
-                            {/* Report Job */}
-                            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <button className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700">
-                                    <FiFlag className="mr-2 h-4 w-4" />
-                                    Report this job
-                                </button>
+                                <Link
+                                    to={`/company/${job.companyId._id}`}
+                                    className="inline-flex items-center text-base text-blue-600 hover:text-blue-800 font-semibold"
+                                >
+                                    View company page
+                                    <FiExternalLink className="ml-2 h-4 w-4" />
+                                </Link>
                             </div>
+                        )}
+
+                        {/* Report Job */}
+                        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                            <button className="inline-flex items-center text-base text-gray-500 hover:text-red-600 font-semibold">
+                                <FiFlag className="mr-3 h-5 w-5" />
+                                Report this job
+                            </button>
                         </div>
                     </div>
                 </div>

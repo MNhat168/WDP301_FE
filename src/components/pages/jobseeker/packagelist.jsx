@@ -6,7 +6,9 @@ import { UserContext } from '../../../Context';
 import {
     FiCheck, FiX, FiStar, FiZap, FiTrendingUp, FiUsers, FiEye,
     FiHeart, FiBriefcase, FiBarChart, FiGift, FiClock,
-    FiShield, FiArrowRight, FiRefreshCw, FiCalendar, FiTarget
+    FiShield, FiArrowRight, FiRefreshCw, FiCalendar, FiTarget,
+    FiCreditCard, FiSettings, FiAward, FiAlertCircle, FiDownload,
+    FiEdit3, FiTrash2
 } from 'react-icons/fi';
 import toastr from 'toastr';
 import 'toastr/build/toastr.min.css';
@@ -18,14 +20,17 @@ const PackageList = () => {
     const [plans, setPlans] = useState([]);
     const [currentSubscription, setCurrentSubscription] = useState(null);
     const [usageStats, setUsageStats] = useState(null);
+    const [billingHistory, setBillingHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showCancelModal, setShowCancelModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [isTrialLoading, setIsTrialLoading] = useState(false);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [paymentDetails, setPaymentDetails] = useState({
         amount: 0,
-        bankCode: '',
-        language: 'vn'
+        bankCode: 'paypal',
+        language: 'en'
     });
     const BanPopup = useBanCheck();
 
@@ -34,91 +39,168 @@ const PackageList = () => {
         return user?.accessToken || user?.token;
     };
 
-    // Fetch subscription plans
-    useEffect(() => {
-        const fetchPlans = async () => {
-            try {
-                if (!user) {
-                    navigate('/login');
-                    return;
+    // Fetch all data in one function
+    const fetchAllData = async () => {
+        try {
+            const token = getUserToken();
+            if (!token) return;
+
+            setIsLoading(true);
+
+            // Fetch subscription plans
+            const plansResponse = await fetch('http://localhost:5000/api/subscriptions/plans', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
                 }
+            });
 
-                const token = getUserToken();
-                if (!token) {
-                    navigate('/login');
-                    return;
-                }
-
-                const response = await fetch('http://localhost:5000/api/subscriptions/plans', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch plans');
-                }
-
-                const data = await response.json();
-                setPlans(data.result || []);
-            } catch (error) {
-                console.error('Error fetching plans:', error);
-                toastr.error('Failed to load subscription plans');
+            if (plansResponse.ok) {
+                const plansData = await plansResponse.json();
+                setPlans(plansData.result || []);
             }
-        };
 
-        fetchPlans();
-    }, [user, navigate]);
-
-    // Fetch current subscription and usage stats
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const token = getUserToken();
-                if (!token) return;
-
-                // Fetch current subscription - Updated endpoint
-                const subResponse = await fetch('http://localhost:5000/api/subscriptions/my-subscription', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (subResponse.ok) {
-                    const subData = await subResponse.json();
-                    // Handle new API structure
-                    if (subData.result && subData.result.hasSubscription) {
-                        setCurrentSubscription(subData.result);
-                    } else {
-                        // User has no active subscription (free plan)
-                        setCurrentSubscription(null);
-                    }
+            // Fetch current subscription
+            const subResponse = await fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
                 }
+            });
 
-                // Fetch usage stats
-                const statsResponse = await fetch('http://localhost:5000/api/subscriptions/usage-stats', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (statsResponse.ok) {
-                    const statsData = await statsResponse.json();
-                    setUsageStats(statsData.result);
+            if (subResponse.ok) {
+                const subData = await subResponse.json();
+                if (subData.result && subData.result.hasSubscription) {
+                    setCurrentSubscription(subData.result);
+                } else {
+                    setCurrentSubscription(null);
                 }
-
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-            } finally {
-                setIsLoading(false);
+            } else {
+                setCurrentSubscription(null);
             }
-        };
 
-        fetchUserData();
-    }, []);
+            // Fetch usage stats
+            const statsResponse = await fetch('http://localhost:5000/api/user/limits', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            // Fetch actual applications for verification
+            const applicationsResponse = await fetch('http://localhost:5000/api/applications/my-applications', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            let actualApplicationsCount = 0;
+            let actualApplicationsList = [];
+            if (applicationsResponse.ok) {
+                const appsData = await applicationsResponse.json();
+                
+                if (appsData.success && appsData.data && appsData.data.applications) {
+                    actualApplicationsList = appsData.data.applications;
+                    actualApplicationsCount = actualApplicationsList.length;
+                } else if (appsData.result && Array.isArray(appsData.result)) {
+                    actualApplicationsList = appsData.result;
+                    actualApplicationsCount = actualApplicationsList.length;
+                }
+            }
+            
+            if (statsResponse.ok) {
+                const statsData = await statsResponse.json();
+                
+                const transformedStats = {
+                    jobApplications: {
+                        used: statsData.result?.applications?.used || 0,
+                        limit: statsData.result?.applications?.limit || 5,
+                        actualCount: actualApplicationsCount,
+                        actualList: actualApplicationsList
+                    },
+                    savedJobs: {
+                        used: statsData.result?.favorites?.used || 0,
+                        limit: statsData.result?.favorites?.limit || 10,
+                        actualCount: statsData.result?.user?.actualCounts?.favoriteJobs || 0
+                    },
+                    profileViews: statsData.result?.analytics?.profileViews || 0,
+                    jobPostings: {
+                        used: statsData.result?.jobPostings?.used || 0,
+                        limit: statsData.result?.jobPostings?.limit || 0
+                    }
+                };
+                
+                setUsageStats(transformedStats);
+            } else {
+                const defaultStats = {
+                    jobApplications: { used: 0, limit: 5, actualCount: 0 },
+                    savedJobs: { used: 0, limit: 10, actualCount: 0 },
+                    profileViews: 0,
+                    jobPostings: { used: 0, limit: 0 }
+                };
+                setUsageStats(defaultStats);
+            }
+
+            // Fetch billing history
+            const billingResponse = await fetch('http://localhost:5000/api/subscriptions/billing-history', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (billingResponse.ok) {
+                const billingData = await billingResponse.json();
+                setBillingHistory(billingData.result || []);
+            }
+
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            toastr.error('Failed to load subscription data');
+            // Set default stats even if there's an error
+            setUsageStats({
+                jobApplications: { used: 0, limit: 5, actualCount: 0 },
+                savedJobs: { used: 0, limit: 10, actualCount: 0 },
+                profileViews: 0,
+                jobPostings: { used: 0, limit: 0 }
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Initial data fetch
+    useEffect(() => {
+        fetchAllData();
+    }, [user]);
+
+    // Cancel subscription
+    const handleCancelSubscription = async () => {
+        setIsCancelling(true);
+        try {
+            const token = getUserToken();
+            const response = await fetch('http://localhost:5000/api/subscriptions/cancel', {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status) {
+                toastr.success('Subscription cancelled successfully');
+                setShowCancelModal(false);
+                await fetchAllData(); // Refresh all data
+            } else {
+                throw new Error(data.message || 'Failed to cancel subscription');
+            }
+        } catch (error) {
+            console.error('Error cancelling subscription:', error);
+            toastr.error(error.message || 'Failed to cancel subscription');
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
     // Activate free trial - Updated to use subscribe endpoint
     const handleActivateTrial = async (planId) => {
@@ -142,7 +224,7 @@ const PackageList = () => {
             if (response.ok && data.status) {
                 toastr.success('Free trial activated successfully!');
                 // Refresh subscription data
-                window.location.reload();
+                await fetchAllData();
             } else {
                 throw new Error(data.message || 'Failed to activate trial');
             }
@@ -189,92 +271,30 @@ const PackageList = () => {
         const selectedPlanInterval = selectedPlan?.interval || 'month';
         
         return (
-            <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                {/* Modal Container */}
-                <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-auto flex flex-col">
-                    {/* Modal Header */}
+            <div className="fixed inset-0 bg-gray-900/50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto flex flex-col">
                     <div className="p-6 text-center">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                            <FiStar className="text-white text-xl"/>
-                        </div>
-                        <h2 className="text-xl font-bold text-gray-900">Upgrade to {selectedPlanName}</h2>
-                        <p className="text-sm text-gray-500 mt-1">Choose your payment method below</p>
-                    </div>
-
-                    {/* Modal Body */}
-                    <div className="px-6 pb-6 flex-1">
-                        <form id="payment-form" onSubmit={handlePaymentSubmit} className="space-y-4">
-                            <div className="bg-gray-100/70 rounded-lg p-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-gray-600">Total Amount</span>
-                                    <span className="text-xl font-bold text-gray-900">
-                                        ${selectedPlanPrice?.toLocaleString()}
-                                        <span className="text-sm text-gray-500 font-normal">/{selectedPlanInterval}</span>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-gray-700 flex items-center">
-                                    <FiShield className="mr-2 text-gray-400 h-4 w-4"/>
-                                    Payment Method
-                                </h3>
-                                <div className="space-y-2">
-                                    {[
-                                        { value: '', label: 'VNPAY QR Payment Gateway', icon: '🏦' },
-                                        { value: 'VNBANK', label: 'Domestic ATM Card/Account', icon: '💳' },
-                                        { value: 'INTCARD', label: 'International Card', icon: '🌍' }
-                                    ].map((method) => (
-                                        <label key={method.value} className={`flex items-center p-3.5 border rounded-lg transition-all cursor-pointer ${paymentDetails.bankCode === method.value ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 bg-white hover:border-gray-400'}`}>
-                                            <input type="radio" name="bankCode" value={method.value} checked={paymentDetails.bankCode === method.value} onChange={handleInputChange} className="h-4 w-4 border-gray-300 focus:ring-blue-500 text-blue-600"/>
-                                            <span className="text-lg mx-3">{method.icon}</span>
-                                            <span className="font-medium text-sm text-gray-800 flex-1">{method.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-semibold text-gray-700 flex items-center">
-                                    <FiTarget className="mr-2 text-gray-400 h-4 w-4"/>
-                                    Language Preference
-                                </h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
-                                        { value: 'vn', label: 'Tiếng Việt', flag: '🇻🇳' },
-                                        { value: 'en', label: 'English', flag: '🇺🇸' }
-                                    ].map((lang) => (
-                                        <label key={lang.value} className={`flex items-center justify-center p-3.5 border rounded-lg transition-all cursor-pointer ${paymentDetails.language === lang.value ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 bg-white hover:border-gray-400'}`}>
-                                            <input type="radio" name="language" value={lang.value} checked={paymentDetails.language === lang.value} onChange={handleInputChange} className="h-4 w-4 border-gray-300 focus:ring-blue-500 text-blue-600"/>
-                                            <span className="text-lg mx-2">{lang.flag}</span>
-                                            <span className="font-medium text-sm text-gray-800">{lang.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* Modal Footer */}
-                    <div className="px-6 pb-6">
-                        <div className="flex flex-col-reverse sm:flex-row gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setShowPaymentModal(false)}
-                                className="flex-1 bg-white border border-gray-300 text-gray-800 py-3 px-5 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                form="payment-form"
-                                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-5 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all font-semibold flex items-center justify-center text-sm"
-                            >
-                                <FiZap className="mr-1.5 h-4 w-4"/>
-                                Proceed to Payment
-                            </button>
+                        <h2 className="text-xl font-bold text-gray-900 mb-2">Upgrade to {selectedPlanName}</h2>
+                        <div className="text-3xl font-bold text-blue-700 mb-2">
+                            ${selectedPlanPrice?.toLocaleString()} <span className="text-base text-gray-500 font-normal">/{selectedPlanInterval}</span>
                         </div>
                     </div>
+                    <form id="payment-form" onSubmit={handlePaymentSubmit} className="px-6 pb-6 flex flex-col gap-4">
+                        <button
+                            type="submit"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold flex items-center justify-center text-base"
+                        >
+                            <FiStar className="mr-2"/>
+                            Pay with PayPal
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowPaymentModal(false)}
+                            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold text-base"
+                        >
+                            Cancel
+                        </button>
+                    </form>
                 </div>
             </div>
         );
@@ -292,7 +312,7 @@ const PackageList = () => {
                 },
                 body: JSON.stringify({
                     subscriptionId: selectedPlan._id,
-                    paymentMethod: paymentDetails.bankCode || 'vnpay',
+                    paymentMethod: paymentDetails.bankCode || 'paypal',
                     billingPeriod: 'monthly'
                 })
             });
@@ -300,10 +320,18 @@ const PackageList = () => {
             const result = await response.json();
 
             if (response.ok && result.status) {
-                toastr.success('Subscription created successfully!');
-                setShowPaymentModal(false);
-                // Refresh subscription data
-                window.location.reload();
+                // For PayPal integration, redirect to PayPal payment page
+                if (result.result.paymentUrl) {
+                    window.location.href = result.result.paymentUrl;
+                } else {
+                    const message = result.result.isUpgrade ? 
+                        'Subscription upgraded successfully!' : 
+                        'Subscription activated successfully!';
+                    toastr.success(message);
+                    setShowPaymentModal(false);
+                    // Refresh subscription data
+                    await fetchAllData();
+                }
             } else {
                 throw new Error(result.message || 'Subscription failed');
             }
@@ -323,7 +351,13 @@ const PackageList = () => {
 
     // Usage stats component
     const UsageStatsCard = () => {
-        if (!usageStats) return null;
+        // Always show the card, even if usageStats is not loaded yet
+        const stats = usageStats || {
+            jobApplications: { used: 0, limit: 5, actualCount: 0 },
+            savedJobs: { used: 0, limit: 10, actualCount: 0 },
+            profileViews: 0,
+            jobPostings: { used: 0, limit: 0 }
+        };
 
         return (
             <div className="bg-white rounded-3xl shadow-xl p-8 mb-12">
@@ -340,19 +374,24 @@ const PackageList = () => {
                             </span>
                         </div>
                         <div className="text-3xl font-bold text-blue-700 mb-2">
-                            {usageStats.jobApplications?.used || 0}
+                            {stats.jobApplications?.actualCount !== undefined ? 
+                                stats.jobApplications.actualCount : 
+                                (stats.jobApplications?.used || 0)}
                         </div>
                         <div className="text-sm text-blue-600">
-                            of {usageStats.jobApplications?.limit === -1 ? '∞' : usageStats.jobApplications?.limit} applications
+                            of {stats.jobApplications?.limit === -1 ? '∞' : stats.jobApplications?.limit || 5} applications
                         </div>
                         <div className="w-full bg-blue-200 rounded-full h-2 mt-3">
                             <div 
                                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                 style={{ 
-                                    width: usageStats.jobApplications?.limit === -1 ? '20%' : 
-                                           `${Math.min((usageStats.jobApplications?.used / usageStats.jobApplications?.limit) * 100, 100)}%` 
+                                    width: stats.jobApplications?.limit === -1 ? '20%' : 
+                                           `${Math.min(((stats.jobApplications?.actualCount !== undefined ? stats.jobApplications.actualCount : stats.jobApplications?.used || 0) / (stats.jobApplications?.limit || 5)) * 100, 100)}%` 
                                 }}
                             ></div>
+                        </div>
+                        <div className="text-xs text-blue-500 mt-2">
+                            Remaining: {stats.jobApplications?.limit === -1 ? '∞' : Math.max(0, (stats.jobApplications?.limit || 5) - (stats.jobApplications?.actualCount !== undefined ? stats.jobApplications.actualCount : stats.jobApplications?.used || 0))}
                         </div>
                     </div>
 
@@ -364,19 +403,24 @@ const PackageList = () => {
                             </span>
                         </div>
                         <div className="text-3xl font-bold text-purple-700 mb-2">
-                            {usageStats.savedJobs?.used || 0}
+                            {stats.savedJobs?.actualCount !== undefined ? 
+                                stats.savedJobs.actualCount : 
+                                (stats.savedJobs?.used || 0)}
                         </div>
                         <div className="text-sm text-purple-600">
-                            of {usageStats.savedJobs?.limit === -1 ? '∞' : usageStats.savedJobs?.limit} saves
+                            of {stats.savedJobs?.limit === -1 ? '∞' : stats.savedJobs?.limit || 10} saves
                         </div>
                         <div className="w-full bg-purple-200 rounded-full h-2 mt-3">
                             <div 
                                 className="bg-purple-600 h-2 rounded-full transition-all duration-300"
                                 style={{ 
-                                    width: usageStats.savedJobs?.limit === -1 ? '30%' : 
-                                           `${Math.min((usageStats.savedJobs?.used / usageStats.savedJobs?.limit) * 100, 100)}%` 
+                                    width: stats.savedJobs?.limit === -1 ? '30%' : 
+                                           `${Math.min(((stats.savedJobs?.actualCount !== undefined ? stats.savedJobs.actualCount : stats.savedJobs?.used || 0) / (stats.savedJobs?.limit || 10)) * 100, 100)}%` 
                                 }}
                             ></div>
+                        </div>
+                        <div className="text-xs text-purple-500 mt-2">
+                            Remaining: {stats.savedJobs?.limit === -1 ? '∞' : Math.max(0, (stats.savedJobs?.limit || 10) - (stats.savedJobs?.actualCount !== undefined ? stats.savedJobs.actualCount : stats.savedJobs?.used || 0))}
                         </div>
                     </div>
 
@@ -388,17 +432,18 @@ const PackageList = () => {
                             </span>
                         </div>
                         <div className="text-3xl font-bold text-green-700 mb-2">
-                            {usageStats.profileViews || 0}
+                            {stats.profileViews || 0}
                         </div>
                         <div className="text-sm text-green-600">
                             this month
                         </div>
-                        <div className="flex items-center mt-3">
-                            <FiTrendingUp className="text-green-600 mr-1"/>
-                            <span className="text-sm text-green-600 font-semibold">
-                                +{Math.floor(Math.random() * 20) + 5}% from last month
-                            </span>
-                        </div>
+                        {stats.jobPostings?.limit > 0 && (
+                            <div className="mt-3 pt-3 border-t border-green-200">
+                                <div className="text-sm text-green-600 font-semibold">
+                                    Job Posts: {stats.jobPostings?.used || 0}/{stats.jobPostings?.limit || 0}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -416,11 +461,6 @@ const PackageList = () => {
         const planTrialDays = plan.trialDays || (plan.promotions?.trialDays) || 0;
         
         const canStartTrial = !currentSubscription && planTrialDays > 0 && planName !== 'Free';
-
-        // Debug log for current plan detection (updated for new API structure)
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Plan:', planName, 'isCurrentPlan:', isCurrentPlan, 'hasSubscription:', currentSubscription?.hasSubscription, 'planId:', plan._id);
-        }
 
         return (
             <div className={`relative bg-white rounded-3xl shadow-xl overflow-hidden transition-all duration-300 hover:-translate-y-2 flex flex-col min-h-[550px] ${
@@ -573,54 +613,82 @@ const PackageList = () => {
                 {/* Header Section */}
                 <div className="text-center mb-16">
                     <h1 className="text-5xl font-extrabold text-gray-800 mb-4">
-                        Choose Your <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Perfect Plan</span>
+                        Subscription <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Management</span>
                     </h1>
                     <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                        Unlock your career potential with our premium features. Start with a free trial and upgrade anytime.
+                        Manage your subscription, track usage, and unlock your career potential with our premium features.
                     </p>
+                    {(!currentSubscription || !currentSubscription.hasSubscription) && (
+                        <p className="text-lg text-gray-500 mt-2">
+                            Start with a free trial and upgrade anytime.
+                        </p>
+                    )}
                 </div>
 
-                {/* Usage Stats */}
-                <UsageStatsCard />
+                {/* Usage Stats - Always show this */}
+                <div className="relative z-10 mb-12">
+                    <UsageStatsCard />
+                </div>
 
-                {/* Current Subscription Info */}
+                {/* Current Subscription Management */}
                 {currentSubscription && currentSubscription.hasSubscription && (
-                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-8 mb-12 text-white shadow-2xl">
+                    <div className="bg-white rounded-3xl shadow-xl p-8 mb-8">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mr-6">
-                                    <FiStar className="text-white text-2xl"/>
+                            <div>
+                                <div className="flex items-center mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center mr-4">
+                                        <FiAward className="text-white text-xl"/>
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center mb-2">
+                                            <h2 className="text-2xl font-bold text-gray-800 mr-3">
+                                                {currentSubscription.planId?.name || currentSubscription.planId?.packageName || 'Premium'} Plan
+                                            </h2>
+                                            {currentSubscription.status === 'trial' && (
+                                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                                    Trial
+                                                </span>
+                                            )}
+                                            {currentSubscription.status === 'active' && (
+                                                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+                                                    Active
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-gray-600">
+                                            {currentSubscription.status === 'active' && !currentSubscription.status === 'trial' && 'Active subscription'}
+                                            {currentSubscription.status === 'trial' && 'Free trial active'}
+                                            {currentSubscription.status === 'cancelled' && 'Cancelled (access until end of period)'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="text-2xl font-bold mb-2 flex items-center">
-                                        <FiCheck className="mr-2 text-green-200"/>
-                                        Current Plan: {currentSubscription.planId?.name || currentSubscription.planId?.packageName || 'Premium'}
-                                    </h3>
-                                    <div className="flex items-center space-x-4 text-green-100">
-                                        <span className="flex items-center">
-                                            <FiShield className="mr-1"/>
-                                            {currentSubscription.status === 'trial' ? 'Free Trial Active' : 'Active Subscription'}
-                                        </span>
+                                
+                                {currentSubscription && currentSubscription.daysRemaining !== undefined && (
+                                    <div className="flex items-center space-x-6 text-sm text-gray-600">
+                                        <div className="flex items-center">
+                                            <FiCalendar className="mr-2"/>
+                                            {currentSubscription.status === 'trial' ? 'Trial ends in:' : 
+                                             currentSubscription.status === 'cancelled' ? 'Access until:' : 
+                                             'Next billing in:'} {currentSubscription.daysRemaining} days
+                                        </div>
                                         {currentSubscription.endDate && (
-                                            <span className="flex items-center">
-                                                <FiCalendar className="mr-1"/>
-                                                Expires {new Date(currentSubscription.endDate).toLocaleDateString()}
-                                            </span>
+                                            <div className="flex items-center">
+                                                <FiCreditCard className="mr-2"/>
+                                                Expires: {new Date(currentSubscription.endDate).toLocaleDateString()}
+                                            </div>
                                         )}
                                     </div>
-                                </div>
+                                )}
                             </div>
-                            <div className="text-right">
-                                {currentSubscription.status === 'trial' ? (
-                                    <div className="bg-white/20 px-6 py-3 rounded-xl flex items-center">
-                                        <FiClock className="mr-2 text-yellow-200"/>
-                                        <span className="font-semibold">Trial Period</span>
-                                    </div>
-                                ) : (
-                                    <div className="bg-white/20 px-6 py-3 rounded-xl flex items-center">
-                                        <FiCheck className="mr-2 text-green-200"/>
-                                        <span className="font-semibold">Premium Active</span>
-                                    </div>
+
+                            <div className="flex gap-3">
+                                {currentSubscription.status !== 'cancelled' && (
+                                    <button
+                                        onClick={() => setShowCancelModal(true)}
+                                        className="px-6 py-3 border-2 border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-semibold"
+                                    >
+                                        Cancel Plan
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -635,8 +703,12 @@ const PackageList = () => {
                         // Updated current plan detection for new API structure
                         let isCurrentPlan = false;
                         if (currentSubscription && currentSubscription.hasSubscription) {
-                            // User has active subscription
-                            isCurrentPlan = currentSubscription.planId?._id === plan._id;
+                            // User has active subscription - check both possible locations for planId
+                            const currentPlanId = currentSubscription.planId?._id || currentSubscription.subscription?.planId;
+                            const planIdStr = plan._id?.toString();
+                            const currentPlanIdStr = currentPlanId?.toString();
+                            
+                            isCurrentPlan = planIdStr === currentPlanIdStr;
                         } else {
                             // User has no subscription = free plan
                             isCurrentPlan = planName === 'Free' || plan.packageType === 'free';
@@ -655,6 +727,65 @@ const PackageList = () => {
                     }) : (
                         <div className="col-span-full text-center py-12">
                             <p className="text-gray-500 text-lg">No subscription plans available at the moment.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Billing History */}
+                <div className="bg-white rounded-3xl shadow-xl p-8 mb-16">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-2xl font-bold text-gray-800 flex items-center">
+                            <FiCreditCard className="mr-3 text-green-500"/>
+                            Billing History
+                        </h3>
+                        <button className="text-blue-600 hover:text-blue-700 font-semibold flex items-center">
+                            <FiDownload className="mr-2"/>
+                            Download All
+                        </button>
+                    </div>
+
+                    {billingHistory.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FiCreditCard className="text-gray-400 text-2xl"/>
+                            </div>
+                            <h4 className="text-lg font-semibold text-gray-800 mb-2">No billing history</h4>
+                            <p className="text-gray-600">
+                                {(!currentSubscription || !currentSubscription.hasSubscription) ? 
+                                    'Upgrade to a paid plan to see billing history' : 
+                                    'Your billing history will appear here'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {billingHistory.map((bill, index) => (
+                                <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-center">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-4 ${
+                                            bill.status === 'paid' ? 'bg-green-100' : 
+                                            bill.status === 'pending' ? 'bg-yellow-100' : 'bg-red-100'
+                                        }`}>
+                                            {bill.status === 'paid' ? (
+                                                <FiCheck className="text-green-600"/>
+                                            ) : bill.status === 'pending' ? (
+                                                <FiRefreshCw className="text-yellow-600"/>
+                                            ) : (
+                                                <FiX className="text-red-600"/>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-gray-800">{bill.description || `${bill.planName} Plan`}</p>
+                                            <p className="text-sm text-gray-600">{new Date(bill.paymentDate || bill.date).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="font-bold text-gray-800 mr-4">${bill.amount}</span>
+                                        <button className="text-blue-600 hover:text-blue-700">
+                                            <FiDownload />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -688,6 +819,47 @@ const PackageList = () => {
             </div>
 
             {showPaymentModal && <PaymentModal />}
+            {showCancelModal && (
+                <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-auto flex flex-col">
+                        <div className="p-6 text-center">
+                            <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                <FiAlertCircle className="text-white text-xl"/>
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900">Cancel Subscription</h2>
+                            <p className="text-sm text-gray-500 mt-1">Are you sure you want to cancel your subscription?</p>
+                        </div>
+                        <div className="px-6 pb-6 flex-1">
+                            <div className="space-y-4">
+                                <p className="text-gray-700 text-sm">
+                                    Cancelling your subscription will immediately end your access to all premium features. 
+                                    Your data will be preserved, but you won't be able to use features like 
+                                    unlimited job applications, saved jobs, or profile views.
+                                </p>
+                                <p className="text-gray-700 text-sm">
+                                    You will continue to have access to the free plan features until the end of your current billing period.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-6 pb-6">
+                            <div className="flex flex-col-reverse sm:flex-row gap-3">
+                                <button
+                                    onClick={() => setShowCancelModal(false)}
+                                    className="flex-1 bg-white border border-gray-300 text-gray-800 py-3 px-5 rounded-lg hover:bg-gray-100 transition-colors font-semibold text-sm"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCancelSubscription}
+                                    className="flex-1 bg-red-600 text-white py-3 px-5 rounded-lg hover:bg-red-700 transition-all font-semibold text-sm"
+                                >
+                                    Confirm Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

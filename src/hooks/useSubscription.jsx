@@ -117,9 +117,10 @@ export const useSubscriptionData = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
-        
+        console.log("fetching data")
         try {
             const result = await getUserLimits();
+            console.log(result, "result")
             if (result.success) {
                 setSubscriptionData(result.data);
             } else {
