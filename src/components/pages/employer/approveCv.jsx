@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import CVPreview from '../jobseeker/CVPreview';
 import HeaderEmployer from "../../layout/headeremp";
 import toastr from "toastr";
-import { FiUser, FiCalendar, FiMapPin, FiBriefcase, FiMail, FiPhone, FiChevronRight,FiCheckSquare  } from "react-icons/fi";
+import { FiUser, FiCalendar, FiMapPin, FiBriefcase, FiMail, FiPhone, FiChevronRight, FiCheckSquare } from "react-icons/fi";
 
 const ApproveCV = () => {
   const { jobId } = useParams();
@@ -84,7 +84,7 @@ const ApproveCV = () => {
     }
   };
 
-   const toggleSelectAll = () => {
+  const toggleSelectAll = () => {
     if (selectedApplicants.length === applications.length) {
       setSelectedApplicants([]);
     } else {
@@ -232,7 +232,7 @@ const ApproveCV = () => {
           },
           credentials: "include",
           body: JSON.stringify({
-            jobId,
+            applicationIds: selectedApplicants, 
             availableSlots: selectedDates,
             note: scheduleData.note
           }),
@@ -332,22 +332,21 @@ const ApproveCV = () => {
             <div className="p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="text-lg font-semibold text-gray-800">Applicants</h2>
               <div className="flex items-center">
-              <button
-                onClick={toggleSelectAll}
-                className={`flex items-center text-sm ${
-                  selectedApplicants.length === applications.length && applications.length > 0
-                    ? 'text-blue-600'
-                    : 'text-gray-600'
-                }`}
-              >
-                <FiCheckSquare className="mr-1" size={16} />
-                <span>
-                  {selectedApplicants.length === applications.length && applications.length > 0
-                    ? 'Deselect All'
-                    : 'Select All'}
-                </span>
-              </button>
-            </div>
+                <button
+                  onClick={toggleSelectAll}
+                  className={`flex items-center text-sm ${selectedApplicants.length === applications.length && applications.length > 0
+                      ? 'text-blue-600'
+                      : 'text-gray-600'
+                    }`}
+                >
+                  <FiCheckSquare className="mr-1" size={16} />
+                  <span>
+                    {selectedApplicants.length === applications.length && applications.length > 0
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </span>
+                </button>
+              </div>
               <p className="text-sm text-gray-600 mt-1">Click to view details</p>
             </div>
 
@@ -387,7 +386,7 @@ const ApproveCV = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <h3 className="font-medium text-gray-900 truncate">
-                              {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "Applicant"}
+                              {application.userId?.firstName + " " + application.userId?.lastName || "Applicant"}
                             </h3>
                             <span
                               className={`px-2 py-0.5 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${application.status === "pending"
@@ -424,7 +423,10 @@ const ApproveCV = () => {
                             e.stopPropagation();
                             acceptApplicant(application._id);
                           }}
-                          className={`text-xs px-2.5 py-1.5 rounded bg-green-100 text-green-800 hover:bg-green-200
+                          disabled={application.status == "pending"}
+                          className={`text-xs px-2.5 py-1.5 rounded ${application.status === "interview_scheduled"
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-500 cursor-not-allowed"
                             }`}
                         >
                           Accept
@@ -434,8 +436,7 @@ const ApproveCV = () => {
                             e.stopPropagation();
                             updateApplicationStatus(application._id, "rejected");
                           }}
-                          className={`text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-800 hover:bg-red-200
-                            }`}
+                          className={`text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-800 hover:bg-red-200`}
                         >
                           Reject
                         </button>
@@ -477,7 +478,7 @@ const ApproveCV = () => {
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 {activeApplicant
-                  ? `Viewing ${activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "applicant"}'s CV`
+                  ? `Viewing ${activeApplicant.userId?.firstName + " " + activeApplicant.userId?.lastName || "applicant"}'s CV`
                   : "Click on an applicant to view their CV"}
               </p>
             </div>
@@ -500,11 +501,11 @@ const ApproveCV = () => {
                       )}
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
-                          {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName|| "Applicant"}
+                          {activeApplicant.userId?.firstName + " " + activeApplicant.userId?.lastName || "Applicant"}
                         </h3>
                         <p className="text-sm text-gray-600 flex items-center">
                           <FiMail className="mr-1.5" size={14} />
-                          {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "No email"}
+                          {activeApplicant.userId?.firstName + " " + activeApplicant.userId?.lastName || "No email"}
                         </p>
                       </div>
                     </div>
