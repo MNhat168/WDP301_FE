@@ -50,14 +50,14 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
     // Default section config for "simple" template
     const sectionOrder = cvData?.sectionOrder || [
         'personalInfo',
-        'summary', 
+        'summary',
         'experience',
         'skills',
         'education',
         'projects',
         'certifications'
     ];
-    
+
     const sectionVisibility = cvData?.sectionVisibility || {
         personalInfo: true,
         summary: true,
@@ -217,7 +217,7 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
                                         <div className="space-y-2">
                                             {certifications.map((cert, index) => (
                                                 <div key={index} className="text-gray-700">
-                                                    • {cert.name || cert}
+                                                    • {cert.name || "Untitled Certification"}
                                                 </div>
                                             ))}
                                         </div>
@@ -377,7 +377,9 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
                                         </h2>
                                         <div className="space-y-2">
                                             {certifications.map((cert, index) => (
-                                                <div key={index} className="text-gray-700">• {cert.name || cert}</div>
+                                                <div key={index} className="text-gray-700">
+                                                    • {cert.name || "Untitled Certification"}
+                                                </div>
                                             ))}
                                         </div>
                                     </div>
@@ -501,7 +503,9 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
                                 </h2>
                                 <div className="space-y-1">
                                     {certifications.map((cert, index) => (
-                                        <div key={index} className="text-gray-700">• {cert.name || cert}</div>
+                                        <div key={index} className="text-gray-700">
+                                            • {cert.name || "Untitled Certification"}
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -647,8 +651,8 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
                                     </h2>
                                     <div className="space-y-2">
                                         {certifications.map((cert, index) => (
-                                            <div key={index} className="bg-white rounded-lg p-4 shadow-sm border-l-4 border-purple-500">
-                                                {cert.name || cert}
+                                            <div key={index} className="text-gray-700">
+                                                • {cert.name || "Untitled Certification"}
                                             </div>
                                         ))}
                                     </div>
@@ -788,7 +792,9 @@ const CVPreview = ({ cvData, template = 'modern' }) => {
                                 </h2>
                                 <div className="space-y-2">
                                     {certifications.map((cert, index) => (
-                                        <div key={index} className="text-gray-700">• {cert.name || cert}</div>
+                                        <div key={index} className="text-gray-700">
+                                            • {cert.name || "Untitled Certification"}
+                                        </div>
                                     ))}
                                 </div>
                             </div>
