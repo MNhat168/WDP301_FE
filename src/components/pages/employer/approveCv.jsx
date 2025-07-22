@@ -387,7 +387,7 @@ const ApproveCV = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between">
                             <h3 className="font-medium text-gray-900 truncate">
-                              {application.userId?.fullName || "Applicant"}
+                              {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "Applicant"}
                             </h3>
                             <span
                               className={`px-2 py-0.5 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${application.status === "pending"
@@ -477,7 +477,7 @@ const ApproveCV = () => {
               </h2>
               <p className="text-sm text-gray-600 mt-1">
                 {activeApplicant
-                  ? `Viewing ${activeApplicant.userId?.fullName || "applicant"}'s CV`
+                  ? `Viewing ${activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "applicant"}'s CV`
                   : "Click on an applicant to view their CV"}
               </p>
             </div>
@@ -500,11 +500,11 @@ const ApproveCV = () => {
                       )}
                       <div>
                         <h3 className="text-lg font-bold text-gray-900">
-                          {activeApplicant.userId?.fullName || "Applicant"}
+                          {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName|| "Applicant"}
                         </h3>
                         <p className="text-sm text-gray-600 flex items-center">
                           <FiMail className="mr-1.5" size={14} />
-                          {activeApplicant.userId?.email || "No email"}
+                          {activeApplicant.userId?.firstName +" "+ activeApplicant.userId?.lastName || "No email"}
                         </p>
                       </div>
                     </div>
