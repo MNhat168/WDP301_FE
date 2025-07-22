@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../layout/header';
-import { useSubscriptionData } from '../../../hooks/useSubscription.jsx';
+// import { useSubscriptionData } from '../../../hooks/useSubscription.jsx';
 import SubscriptionBadge from '../../common/SubscriptionBadge';
 import UsageMeter from '../../common/UsageMeter';
 import UpgradeModal from '../../common/UpgradeModal';
@@ -15,16 +15,10 @@ import toastr from 'toastr';
 const SubscriptionManagement = () => {
     const navigate = useNavigate();
     
-    // Use new subscription hook
-    const {
-        subscriptionData,
-        loading: subscriptionLoading,
-        error: subscriptionError,
-        refreshData,
-        currentTier,
-        applicationUsage,
-        tierInfo
-    } = useSubscriptionData();
+    // Direct state management instead of hook
+    const [subscriptionData, setSubscriptionData] = useState(null);
+    const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+    const [subscriptionError, setSubscriptionError] = useState(null);
 
     // Legacy state for features not in new system
     const [billingHistory, setBillingHistory] = useState([]);
@@ -32,11 +26,179 @@ const SubscriptionManagement = () => {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const getUserToken = () => {
         const user = JSON.parse(localStorage.getItem('user'));
-        return user?.token;
+        return user?.token || user?.accessToken;
     };
+
+    // Direct API call for subscription data
+    const fetchSubscriptionData = async () => {
+        setSubscriptionLoading(true);
+        setSubscriptionError(null);
+        
+        try {
+            const token = getUserToken();
+
+            console.log('Fetching subscription data...');
+            
+            // Use the same API endpoints as PackageList
+            const [limitsResponse, usageResponse, subscriptionResponse] = await Promise.all([
+                fetch('http://localhost:5000/api/user/limits', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }),
+                fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }),
+                fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                })
+            ]);
+
+            // Parse all responses
+            const limitsData = await limitsResponse.json();
+            const usageData = await usageResponse.json();
+            const subscriptionDataRes = await subscriptionResponse.json();
+            
+            console.log('Limits data:', limitsData);
+            console.log('Usage data:', usageData);
+            console.log('Subscription data:', subscriptionDataRes);
+            
+            // Combine data from both endpoints
+            let combinedData = null;
+            
+            if (limitsData.status && limitsData.result) {
+                combinedData = limitsData.result;
+                
+                // Override with usage stats if available
+                if (usageData.status && usageData.result) {
+                    const usage = usageData.result;
+                    
+                    // Update applications data
+                    if (usage.jobApplications) {
+                        combinedData.applications = {
+                            ...combinedData.applications,
+                            used: usage.jobApplications.used || 0,
+                            limit: usage.jobApplications.limit || combinedData.applications?.limit || 5,
+                            remaining: Math.max(0, (usage.jobApplications.limit || 5) - (usage.jobApplications.used || 0))
+                        };
+                    }
+                    
+                    // Update favorites data
+                    if (usage.savedJobs) {
+                        combinedData.favorites = {
+                            ...combinedData.favorites,
+                            used: usage.savedJobs.used || 0,
+                            limit: usage.savedJobs.limit || combinedData.favorites?.limit || 10,
+                            remaining: Math.max(0, (usage.savedJobs.limit || 10) - (usage.savedJobs.used || 0))
+                        };
+                    }
+                    
+                    // Add profile views to analytics
+                    if (!combinedData.analytics) {
+                        combinedData.analytics = {};
+                    }
+                    combinedData.analytics.profileViews = usage.profileViews || 0;
+                }
+                
+                // Update subscription info if available
+                if (subscriptionDataRes.status && subscriptionDataRes.result?.hasSubscription) {
+                    const subInfo = subscriptionDataRes.result;
+                    combinedData.subscription = {
+                        ...combinedData.subscription,
+                        type: subInfo.planId?.packageType || subInfo.planId?.name?.toLowerCase() || 'free',
+                        status: subInfo.status,
+                        isActive: subInfo.status === 'active' || subInfo.status === 'trial',
+                        startDate: subInfo.startDate,
+                        expiryDate: subInfo.endDate,
+                        daysRemaining: subInfo.daysRemaining || 0,
+                        autoRenew: subInfo.autoRenew || false
+                    };
+                }
+                
+                setSubscriptionData(combinedData);
+            } else {
+                throw new Error(limitsData.message || 'Failed to fetch subscription data');
+            }
+        } catch (error) {
+            console.error('Error fetching subscription data:', error);
+            setSubscriptionError(error.message || 'Failed to fetch subscription data');
+            toastr.error(error.message || 'Failed to fetch subscription data');
+        } finally {
+            setSubscriptionLoading(false);
+        }
+    };
+
+    // Derived values from subscriptionData
+    const currentTier = subscriptionData?.subscription?.type || 'free';
+    const applicationUsage = {
+        used: subscriptionData?.applications?.used || 0,
+        limit: subscriptionData?.applications?.limit || 0,
+        remaining: subscriptionData?.applications?.remaining || 0,
+        percentage: subscriptionData?.applications?.limit === -1 ? 0 : 
+                   Math.round(((subscriptionData?.applications?.used || 0) / (subscriptionData?.applications?.limit || 1)) * 100)
+    };
+    
+    const getTierInfo = (tier) => {
+        const tierMap = {
+            'free': { name: 'Free', color: 'gray' },
+            'basic': { name: 'Basic', color: 'blue' },
+            'premium': { name: 'Premium', color: 'purple' },
+            'enterprise': { name: 'Enterprise', color: 'gold' }
+        };
+        return tierMap[tier] || tierMap.free;
+    };
+    
+    const tierInfo = getTierInfo(currentTier);
+
+    // Manual sync function
+    const handleSyncUsage = async (showToast = true) => {
+        setIsSyncing(true);
+        try {
+            const token = getUserToken();
+            const response = await fetch('http://localhost:5000/api/user/sync-usage', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status) {
+                if (showToast) {
+                    toastr.success('Usage data synced successfully');
+                }
+                // Refresh subscription data to show updated values
+                await fetchSubscriptionData();
+            } else {
+                throw new Error(data.message || 'Failed to sync usage data');
+            }
+        } catch (error) {
+            console.error('Error syncing usage data:', error);
+            if (showToast) {
+                toastr.error(error.message || 'Failed to sync usage data');
+            }
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    // Initial data fetch
+    useEffect(() => {
+        fetchSubscriptionData();
+    }, []);
 
     // Fetch additional data not covered by subscription hook
     useEffect(() => {
@@ -88,7 +250,7 @@ const SubscriptionManagement = () => {
                 toastr.success('Subscription cancelled successfully');
                 setShowCancelModal(false);
                 // Refresh subscription data
-                refreshData();
+                await fetchSubscriptionData();
             } else {
                 throw new Error(data.message || 'Failed to cancel subscription');
             }
@@ -102,10 +264,76 @@ const SubscriptionManagement = () => {
 
     const handleUpgrade = (targetTier) => {
         setShowUpgradeModal(false);
-        // Navigate to packages page or handle upgrade
-        navigate('/packages');
-        console.log(`Upgrading to ${targetTier}`);
+        // Navigate to packages page or handle PayOS upgrade
+        handlePayPalUpgrade(targetTier);
     };
+
+    const handlePayPalUpgrade = async (targetTier) => {
+        try {
+            const token = getUserToken();
+            const packageTypeMap = {
+                'basic': 'basic',
+                'premium': 'premium', 
+                'enterprise': 'enterprise'
+            };
+
+            // First, get available plans to find the correct subscription ID
+            const plansResponse = await fetch('http://localhost:5000/api/subscriptions/plans', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!plansResponse.ok) {
+                throw new Error('Failed to fetch subscription plans');
+            }
+
+            const plansData = await plansResponse.json();
+            const targetPlan = plansData.result?.find(plan => 
+                plan.packageType === packageTypeMap[targetTier]
+            );
+
+            if (!targetPlan) {
+                throw new Error(`${targetTier} plan not found`);
+            }
+
+            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    subscriptionId: targetPlan._id,
+                    paymentMethod: 'paypal',
+                    billingPeriod: 'monthly'
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status) {
+                if (data.result.paymentUrl) {
+                    // Redirect to PayPal payment page
+                    window.open(data.result.paymentUrl, '_blank');
+                    toastr.success('Redirecting to PayPal payment...');
+                } else {
+                    toastr.success('Subscription activated successfully!');
+                    await fetchSubscriptionData();
+                }
+            } else {
+                throw new Error(data.message || 'Failed to create payment request');
+            }
+        } catch (error) {
+            console.error('Error creating payment:', error);
+            toastr.error(error.message || 'Failed to initiate PayPal payment');
+        }
+    };
+
+    // Log for debugging
+    console.log('Current subscription data:', subscriptionData);
+    console.log('Current application usage:', applicationUsage);
 
     const CancelModal = () => (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -179,7 +407,7 @@ const SubscriptionManagement = () => {
                         <h3 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Subscription Data</h3>
                         <p className="text-gray-600 mb-4">{subscriptionError}</p>
                         <button
-                            onClick={refreshData}
+                            onClick={fetchSubscriptionData}
                             className="bg-blue-500 text-white px-6 py-3 rounded-xl hover:bg-blue-600 transition-colors font-semibold"
                         >
                             <FiRefreshCw className="mr-2 inline"/>
@@ -204,7 +432,7 @@ const SubscriptionManagement = () => {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-4xl font-bold text-gray-800 mb-2">Subscription Management</h1>
+                        <h1 className="text-4xl font-bold text-gray-800 mb-2">Subscription Management gyaaaaaaa</h1>
                         <p className="text-gray-600">Manage your plan, usage, and billing</p>
                     </div>
                     <button
@@ -289,62 +517,155 @@ const SubscriptionManagement = () => {
                     </div>
                 </div>
 
-                {/* Usage Statistics */}
-                {subscriptionData && (
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                {/* Usage Statistics - Always show regardless of current plan */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-2xl font-bold text-gray-800 flex items-center">
                             <FiBarChart className="mr-3 text-blue-500"/>
                             Usage This Month
+                            {subscriptionData?.debug && (
+                                <span className="ml-2 text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
+                                    Debug Mode
+                                </span>
+                            )}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                <UsageMeter
-                                    type="applications"
-                                    used={subscriptionData.subscription?.applications?.actual || subscriptionData.applications?.used || 0}
-                                    limit={subscriptionData.applications?.limit || subscriptionData.subscription?.applications?.limit || 5}
-                                    size="md"
-                                />
-                            </div>
-                            
-                            <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                <UsageMeter
-                                    type="favorites"
-                                    used={subscriptionData.user?.actualCounts?.favoriteJobs || subscriptionData.favorites?.count || 0}
-                                    limit={subscriptionData.favorites?.limit || 10}
-                                    size="md"
-                                />
-                            </div>
-
-                            {subscriptionData.jobPostings && (
-                                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                    <UsageMeter
-                                        type="jobPostings"
-                                        used={subscriptionData.subscription?.jobPostings?.actual || subscriptionData.jobPostings.used || 0}
-                                        limit={subscriptionData.jobPostings.limit || subscriptionData.subscription?.jobPostings?.limit || 0}
-                                        size="md"
-                                    />
-                                </div>
-                            )}
-
-                            {!subscriptionData.jobPostings && (
-                                <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                    <div className="flex items-center space-x-3 mb-4">
-                                        <div className="p-3 bg-green-500 rounded-xl text-white">
-                                            <FiEye className="h-5 w-5"/>
-                                        </div>
-                                        <h3 className="font-semibold text-gray-800">Profile Views</h3>
-                                    </div>
-                                    <div className="text-3xl font-bold text-gray-800 mb-2">
-                                        {subscriptionData.analytics?.profileViews || subscriptionData.user?.profileViews || 0}
-                                    </div>
-                                    <p className="text-sm text-gray-600">
-                                        Total views this month
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                        {/* Sync button if needed */}
+                        {subscriptionData?.debug?.needsSync && Object.values(subscriptionData.debug.needsSync).some(Boolean) && (
+                            <button
+                                onClick={() => handleSyncUsage(true)}
+                                disabled={isSyncing}
+                                className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-semibold disabled:opacity-50"
+                            >
+                                {isSyncing ? (
+                                    <FiRefreshCw className="animate-spin mr-2" />
+                                ) : (
+                                    <FiRefreshCw className="mr-2" />
+                                )}
+                                {isSyncing ? 'Syncing...' : 'Sync Data'}
+                            </button>
+                        )}
                     </div>
-                )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Applications Usage */}
+                        <div className="bg-white rounded-2xl p-6 shadow-lg">
+                            <div className="flex items-center space-x-3 mb-4">
+                                <div className="p-3 bg-blue-500 rounded-xl text-white">
+                                    <FiEye className="h-5 w-5"/>
+                                </div>
+                                <h3 className="font-semibold text-gray-800">Applications</h3>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Used</span>
+                                    <span className="font-semibold">
+                                        {subscriptionData?.applications?.used || 0} / {
+                                            subscriptionData?.applications?.limit === -1 ? 'Unlimited' : 
+                                            subscriptionData?.applications?.limit || 5
+                                        }
+                                    </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-blue-500 h-2 rounded-full" 
+                                        style={{ 
+                                            width: subscriptionData?.applications?.limit === -1 ? '0%' : 
+                                                `${Math.min(100, ((subscriptionData?.applications?.used || 0) / (subscriptionData?.applications?.limit || 5)) * 100)}%` 
+                                        }}
+                                    ></div>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                    {subscriptionData?.applications?.remaining || 0} remaining this month
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Favorites Usage */}
+                        <div className="bg-white rounded-2xl p-6 shadow-lg">
+                            <div className="flex items-center space-x-3 mb-4">
+                                <div className="p-3 bg-red-500 rounded-xl text-white">
+                                    <FiStar className="h-5 w-5"/>
+                                </div>
+                                <h3 className="font-semibold text-gray-800">Favorites</h3>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Used</span>
+                                    <span className="font-semibold">
+                                        {subscriptionData?.favorites?.used || subscriptionData?.user?.actualCounts?.favoriteJobs || 0} / {
+                                            subscriptionData?.favorites?.limit === -1 ? 'Unlimited' : 
+                                            subscriptionData?.favorites?.limit || 10
+                                        }
+                                    </span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-red-500 h-2 rounded-full" 
+                                        style={{ 
+                                            width: subscriptionData?.favorites?.limit === -1 ? '0%' : 
+                                                `${Math.min(100, ((subscriptionData?.favorites?.used || subscriptionData?.user?.actualCounts?.favoriteJobs || 0) / (subscriptionData?.favorites?.limit || 10)) * 100)}%` 
+                                        }}
+                                    ></div>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                    {subscriptionData?.favorites?.remaining || 0} remaining
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Job Postings or Profile Views */}
+                        {subscriptionData?.jobPostings && subscriptionData.jobPostings.limit > 0 ? (
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <div className="p-3 bg-green-500 rounded-xl text-white">
+                                        <FiEdit3 className="h-5 w-5"/>
+                                    </div>
+                                    <h3 className="font-semibold text-gray-800">Job Postings</h3>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Used</span>
+                                        <span className="font-semibold">
+                                            {subscriptionData.jobPostings?.used || 0} / {
+                                                subscriptionData.jobPostings?.limit === -1 ? 'Unlimited' : 
+                                                subscriptionData.jobPostings?.limit || 0
+                                            }
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <div 
+                                            className="bg-green-500 h-2 rounded-full" 
+                                            style={{ 
+                                                width: subscriptionData.jobPostings?.limit === -1 ? '0%' : 
+                                                    `${Math.min(100, ((subscriptionData.jobPostings?.used || 0) / (subscriptionData.jobPostings?.limit || 1)) * 100)}%` 
+                                            }}
+                                        ></div>
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                        {subscriptionData.jobPostings?.remaining || 0} remaining this month
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <div className="flex items-center space-x-3 mb-4">
+                                    <div className="p-3 bg-purple-500 rounded-xl text-white">
+                                        <FiTrendingUp className="h-5 w-5"/>
+                                    </div>
+                                    <h3 className="font-semibold text-gray-800">Profile Activity</h3>
+                                </div>
+                                <div className="text-3xl font-bold text-gray-800 mb-2">
+                                    {subscriptionData?.analytics?.profileViews || 0}
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                    Profile views this month
+                                </div>
+                                <div className="text-sm text-gray-600 mt-1">
+                                    CV Downloads: {subscriptionData?.analytics?.cvDownloads || 0}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
 
                 {/* Billing History */}
                 <div className="bg-white rounded-3xl shadow-xl p-8">
