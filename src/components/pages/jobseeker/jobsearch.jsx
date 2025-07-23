@@ -243,7 +243,9 @@ const JobSearch = () => {
                     });
                 }
             } else {
-                console.error('Failed to fetch jobs:', response.status);
+                console.error('Failed to fetch jobs:', response.status, response.statusText);
+                const errorData = await response.text();
+                console.error('Error response:', errorData);
                 setJobs([]);
                 setPagination({
                     currentPage: 1,
@@ -358,13 +360,41 @@ const JobSearch = () => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
 
-        // Show searching state immediately
-        setIsSearching(true);
+        // Show searching state immediately for most changes
+        if (name !== 'minSalary' && name !== 'maxSalary') {
+            setIsSearching(true);
+        }
 
-        setFilters(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        // Validate salary inputs
+        if (name === 'minSalary' || name === 'maxSalary') {
+            // Only allow positive numbers
+            if (value && (isNaN(value) || parseFloat(value) < 0)) {
+                return;
+            }
+            // Set searching state after a brief delay for salary inputs
+            setTimeout(() => setIsSearching(true), 300);
+        }
+
+        setFilters(prev => {
+            const newFilters = {
+                ...prev,
+                [name]: value
+            };
+
+            // Auto-clear conflicting salary values
+            if (name === 'minSalary' && value && newFilters.maxSalary) {
+                if (parseFloat(value) > parseFloat(newFilters.maxSalary)) {
+                    newFilters.maxSalary = '';
+                }
+            }
+            if (name === 'maxSalary' && value && newFilters.minSalary) {
+                if (parseFloat(value) < parseFloat(newFilters.minSalary)) {
+                    newFilters.minSalary = '';
+                }
+            }
+
+            return newFilters;
+        });
 
         // Reset to page 1 when filters change
         setPagination(prev => ({ ...prev, currentPage: 1 }));
@@ -377,6 +407,9 @@ const JobSearch = () => {
     };
 
     const clearFilters = () => {
+        // Set searching state to give immediate feedback
+        setIsSearching(true);
+        
         setFilters({
             keyword: '',
             location: '',
@@ -387,7 +420,16 @@ const JobSearch = () => {
             education: '',
             skills: ''
         });
-        setPagination(prev => ({ ...prev, currentPage: 1 }));
+        
+        // Reset pagination to initial state
+        setPagination({
+            currentPage: 1,
+            totalPages: 0,
+            totalJobs: 0,
+            hasNextPage: false,
+            hasPrevPage: false
+        });
+        
         // Immediately fetch all jobs when clearing filters
         fetchJobs(1);
     };
@@ -470,25 +512,48 @@ const JobSearch = () => {
 
             {/* Main Content */}
             <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row gap-8">
+                {/* Mobile Filter Toggle Button */}
+                <div className="lg:hidden mb-4">
+                    <button
+                        onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                        className="w-full bg-white border border-gray-300 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors font-medium flex items-center justify-between"
+                    >
+                        <span className="flex items-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+                            </svg>
+                            {showAdvancedFilters ? 'Hide Filters' : 'Show Filters'}
+                        </span>
+                        <svg className={`w-5 h-5 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                </div>
+
                 {/* Filters Sidebar */}
-                <div className={`w-full lg:w-1/4 ${showAdvancedFilters ? 'block' : 'hidden lg:block'}`}> 
+                <div className={`w-full lg:w-1/4 transition-all duration-300 ${showAdvancedFilters ? 'block' : 'hidden lg:block'}`}>
                     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-md mb-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-lg font-bold text-gray-900">Filters</h2>
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-lg font-bold text-gray-900 tracking-wide">Filters</h2>
                             <button
                                 onClick={clearFilters}
-                                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                className="text-sm font-semibold text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-600 px-4 py-1 rounded-full transition-colors duration-150 shadow-sm"
                             >
                                 Clear all
                             </button>
                         </div>
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                             {/* Job Type */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Job Type</h3>
-                                <div className="space-y-2">
+                                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="inline-block w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 mr-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6" /></svg>
+                                    </span>
+                                    Job Type
+                                </h3>
+                                <div className="space-y-2 ml-2">
                                     {jobTypes.map(type => (
-                                        <div key={type} className="flex items-center">
+                                        <label key={type} className="flex items-center cursor-pointer group">
                                             <input
                                                 type="radio"
                                                 id={`type-${type}`}
@@ -496,21 +561,24 @@ const JobSearch = () => {
                                                 value={type}
                                                 checked={filters.jobType === type}
                                                 onChange={handleInputChange}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 accent-blue-600 group-hover:scale-110 transition-transform"
                                             />
-                                            <label htmlFor={`type-${type}`} className="ml-2 text-sm text-gray-700">
-                                                {type}
-                                            </label>
-                                        </div>
+                                            <span className="ml-2 text-sm text-gray-700 group-hover:text-blue-600 font-medium">{type}</span>
+                                        </label>
                                     ))}
                                 </div>
                             </div>
                             {/* Experience Level */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Experience Level</h3>
-                                <div className="space-y-2">
+                                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="inline-block w-5 h-5 bg-green-100 rounded-full flex items-center justify-center text-green-500 mr-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1" /></svg>
+                                    </span>
+                                    Experience Level
+                                </h3>
+                                <div className="space-y-2 ml-2">
                                     {experienceLevels.map(level => (
-                                        <div key={level} className="flex items-center">
+                                        <label key={level} className="flex items-center cursor-pointer group">
                                             <input
                                                 type="radio"
                                                 id={`exp-${level}`}
@@ -518,21 +586,24 @@ const JobSearch = () => {
                                                 value={level}
                                                 checked={filters.experience === level}
                                                 onChange={handleInputChange}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 accent-green-600 group-hover:scale-110 transition-transform"
                                             />
-                                            <label htmlFor={`exp-${level}`} className="ml-2 text-sm text-gray-700">
-                                                {level}
-                                            </label>
-                                        </div>
+                                            <span className="ml-2 text-sm text-gray-700 group-hover:text-green-600 font-medium">{level}</span>
+                                        </label>
                                     ))}
                                 </div>
                             </div>
                             {/* Education */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Education</h3>
-                                <div className="space-y-2">
+                                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="inline-block w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center text-purple-500 mr-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0v6" /></svg>
+                                    </span>
+                                    Education
+                                </h3>
+                                <div className="space-y-2 ml-2">
                                     {educationLevels.map(level => (
-                                        <div key={level} className="flex items-center">
+                                        <label key={level} className="flex items-center cursor-pointer group">
                                             <input
                                                 type="radio"
                                                 id={`edu-${level}`}
@@ -540,31 +611,39 @@ const JobSearch = () => {
                                                 value={level}
                                                 checked={filters.education === level}
                                                 onChange={handleInputChange}
-                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 accent-purple-600 group-hover:scale-110 transition-transform"
                                             />
-                                            <label htmlFor={`edu-${level}`} className="ml-2 text-sm text-gray-700">
-                                                {level}
-                                            </label>
-                                        </div>
+                                            <span className="ml-2 text-sm text-gray-700 group-hover:text-purple-600 font-medium">{level}</span>
+                                        </label>
                                     ))}
                                 </div>
                             </div>
                             {/* Skills */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Skills</h3>
+                                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="inline-block w-5 h-5 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-500 mr-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 01-8 0" /></svg>
+                                    </span>
+                                    Skills
+                                </h3>
                                 <input
                                     type="text"
                                     name="skills"
                                     value={filters.skills}
                                     onChange={handleInputChange}
                                     placeholder="e.g., React, Python..."
-                                    className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full p-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all"
                                 />
                             </div>
                             {/* Salary Range */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Salary Range</h3>
-                                <div className="grid grid-cols-2 gap-3">
+                                <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                    <span className="inline-block w-5 h-5 bg-red-100 rounded-full flex items-center justify-center text-red-500 mr-1">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1" /></svg>
+                                    </span>
+                                    Salary Range
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3 ml-2">
                                     <div>
                                         <label className="block text-xs text-gray-500 mb-1">Min ($)</label>
                                         <input
@@ -573,7 +652,7 @@ const JobSearch = () => {
                                             value={filters.minSalary}
                                             onChange={handleInputChange}
                                             placeholder="Min"
-                                            className="w-full p-2 text-sm border border-gray-300 rounded-lg"
+                                            className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-all"
                                         />
                                     </div>
                                     <div>
@@ -584,7 +663,7 @@ const JobSearch = () => {
                                             value={filters.maxSalary}
                                             onChange={handleInputChange}
                                             placeholder="Max"
-                                            className="w-full p-2 text-sm border border-gray-300 rounded-lg"
+                                            className="w-full p-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent transition-all"
                                         />
                                     </div>
                                 </div>
@@ -610,10 +689,32 @@ const JobSearch = () => {
                             </h2>
                             {pagination.totalJobs > 0 && (
                                 <p className="text-gray-600 mt-1 text-sm">
-                                    Showing {Math.min(pagination.totalJobs, 12)} of {pagination.totalJobs} jobs
+                                    Showing page {pagination.currentPage} of {pagination.totalPages} ({pagination.totalJobs} total jobs)
                                 </p>
                             )}
                         </div>
+                        
+                        {/* Active Filters Display */}
+                        {Object.values(filters).some(value => value && value.trim() !== '') && (
+                            <div className="flex flex-wrap gap-2">
+                                {Object.entries(filters).map(([key, value]) => {
+                                    if (!value || value.trim() === '') return null;
+                                    return (
+                                        <span key={key} className="inline-flex items-center bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                                            {key}: {value}
+                                            <button
+                                                onClick={() => handleInputChange({ target: { name: key, value: '' } })}
+                                                className="ml-2 hover:text-blue-600"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Loading State */}

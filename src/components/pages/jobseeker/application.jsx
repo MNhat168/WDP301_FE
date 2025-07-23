@@ -93,9 +93,9 @@ const Application = () => {
         if (statusFilter !== "all") {
             filtered = filtered.filter(app => {
                 if (statusFilter === "pending") return app.status === "pending" || !app.status;
-                if (statusFilter === "reviewed") return app.status === "reviewed";
-                if (statusFilter === "rejected") return app.status === "rejected";
+                if (statusFilter === "interview") return app.status === "interview_scheduled";
                 if (statusFilter === "accepted") return app.status === "accepted";
+                if (statusFilter === "rejected") return app.status === "rejected";
                 return true;
             });
         }
@@ -157,6 +157,51 @@ const Application = () => {
         const [showWithdrawModal, setShowWithdrawModal] = useState(false);
         const [isWithdrawing, setIsWithdrawing] = useState(false);
         
+        // Process steps
+        const steps = [
+            {
+                key: 'pending',
+                label: 'Pending',
+                icon: <FiClock className="w-5 h-5" />,
+                color: 'bg-yellow-400',
+                activeColor: 'bg-yellow-500',
+            },
+            {
+                key: 'interview_scheduled',
+                label: 'Interview',
+                icon: <FiUsers className="w-5 h-5" />,
+                color: 'bg-blue-400',
+                activeColor: 'bg-blue-600',
+            },
+            {
+                key: 'accepted',
+                label: 'Accepted',
+                icon: <FiCheckCircle className="w-5 h-5" />,
+                color: 'bg-green-400',
+                activeColor: 'bg-green-600',
+            },
+            {
+                key: 'rejected',
+                label: 'Rejected',
+                icon: <FiXCircle className="w-5 h-5" />,
+                color: 'bg-red-400',
+                activeColor: 'bg-red-600',
+            },
+        ];
+
+        // Determine current step index
+        const status = (application.status || 'pending').toLowerCase();
+        let currentStepIdx = 0;
+        if (status === 'pending') currentStepIdx = 0;
+        else if (status === 'interview_scheduled') currentStepIdx = 1;
+        else if (status === 'accepted') currentStepIdx = 2;
+        else if (status === 'rejected') currentStepIdx = 3;
+
+        // For process bar, only show one of approve/reject at the end
+        const visibleSteps = steps.slice(0, 2).concat(
+            status === 'accepted' ? steps[2] : status === 'rejected' ? steps[3] : []
+        );
+
         const handleWithdraw = async () => {
             setIsWithdrawing(true);
             
@@ -180,6 +225,38 @@ const Application = () => {
         return (
             <div className="bg-white rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:-translate-y-1">
                 <div className="p-6">
+                    {/* Process Bar */}
+                    <div className="mb-4">
+                        <div className="flex items-center justify-between">
+                            {visibleSteps.map((step, idx) => {
+                                const isActive = idx === currentStepIdx;
+                                const isCompleted = idx < currentStepIdx;
+                                const isLast = idx === visibleSteps.length - 1;
+                                return (
+                                    <React.Fragment key={step.key}>
+                                        <div className="flex flex-col items-center flex-1">
+                                            <div className={`w-8 h-8 flex items-center justify-center rounded-full border-2 ${
+                                                isActive
+                                                    ? step.activeColor + ' border-' + step.activeColor.replace('bg-', '')
+                                                    : isCompleted
+                                                    ? step.color + ' border-' + step.color.replace('bg-', '')
+                                                    : 'bg-gray-200 border-gray-300'
+                                            } text-white font-bold transition-all`}
+                                            >
+                                                {step.icon}
+                                            </div>
+                                            <span className={`mt-2 text-xs font-medium ${isActive ? 'text-blue-700' : isCompleted ? 'text-gray-500' : 'text-gray-400'}`}>{step.label}</span>
+                                        </div>
+                                        {!isLast && (
+                                            <div className={`flex-1 h-1 mx-1 ${
+                                                isCompleted ? 'bg-blue-400' : 'bg-gray-200'
+                                            } rounded-full transition-all`}></div>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                    </div>
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
@@ -373,7 +450,7 @@ const Application = () => {
                         {[
                             { key: 'all', label: 'All Applications', icon: FiUsers },
                             { key: 'pending', label: 'Pending', icon: FiClock },
-                            { key: 'reviewed', label: 'Under Review', icon: FiEye },
+                            { key: 'interview', label: 'Interview', icon: FiUsers },
                             { key: 'accepted', label: 'Accepted', icon: FiCheckCircle },
                             { key: 'rejected', label: 'Rejected', icon: FiXCircle }
                         ].map(({ key, label, icon: Icon }) => (
@@ -395,12 +472,12 @@ const Application = () => {
 
                 {/* Stats Summary */}
                 {!loading && !error && Array.isArray(applications) && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
                         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-blue-600 font-semibold text-sm">Total Applications</p>
-                                    <p className="text-3xl font-bold text-blue-700">{summary?.total || applications.length}</p>
+                                    <p className="text-3xl font-bold text-blue-700">{applications.length}</p>
                                 </div>
                                 <FiBriefcase className="text-blue-600 text-3xl"/>
                             </div>
@@ -410,10 +487,21 @@ const Application = () => {
                                 <div>
                                     <p className="text-yellow-600 font-semibold text-sm">Pending</p>
                                     <p className="text-3xl font-bold text-yellow-700">
-                                        {summary?.pending ?? applications.filter(app => !app.status || app.status === 'pending').length}
+                                        {applications.filter(app => !app.status || app.status === 'pending').length}
                                     </p>
                                 </div>
                                 <FiClock className="text-yellow-600 text-3xl"/>
+                            </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-blue-600 font-semibold text-sm">Interview</p>
+                                    <p className="text-3xl font-bold text-blue-700">
+                                        {applications.filter(app => app.status === 'interview_scheduled').length}
+                                    </p>
+                                </div>
+                                <FiUsers className="text-blue-600 text-3xl"/>
                             </div>
                         </div>
                         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
@@ -421,21 +509,21 @@ const Application = () => {
                                 <div>
                                     <p className="text-green-600 font-semibold text-sm">Accepted</p>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {summary?.accepted ?? applications.filter(app => app.status === 'accepted').length}
+                                        {applications.filter(app => app.status === 'accepted').length}
                                     </p>
                                 </div>
                                 <FiCheckCircle className="text-green-600 text-3xl"/>
                             </div>
                         </div>
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
+                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-purple-600 font-semibold text-sm">Under Review</p>
-                                    <p className="text-3xl font-bold text-purple-700">
-                                        {summary?.reviewed ?? applications.filter(app => app.status === 'reviewed').length}
+                                    <p className="text-red-600 font-semibold text-sm">Rejected</p>
+                                    <p className="text-3xl font-bold text-red-700">
+                                        {applications.filter(app => app.status === 'rejected').length}
                                     </p>
                                 </div>
-                                <FiEye className="text-purple-600 text-3xl"/>
+                                <FiXCircle className="text-red-600 text-3xl"/>
                             </div>
                         </div>
                     </div>

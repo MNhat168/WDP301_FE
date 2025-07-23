@@ -1,23 +1,28 @@
 import React from "react";
-import Intro from "../Intro/Intro";
-import Services from "../Services/Services";
-import Experience from '../Experience/Experience';
-import Works from '../Works/Works';
-import Portfolio from '../Portfolio/Portfolio';
-import Testimonial from '../Testimonials/Testimonial';
-import Footer from '../Footer/Footer';
-import "../../App.css";
 import Header from "../layout/header";
+import HeroSection from "../HeroSection/HeroSection";
+import JobCategories from "../JobCategories/JobCategories";
+import FeaturedJobs from "../FeaturedJobs/FeaturedJobs";
+import HowItWorks from "../HowItWorks/HowItWorks";
+import CompanyShowcase from "../CompanyShowcase/CompanyShowcase";
+import Statistics from "../Statistics/Statistics";
+import CTASection from "../CTASection/CTASection";
+import Footer from "../Footer/Footer";
+import "../../App.css";
+
 function Index() {
   return (
-    <div className="App">
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      <Intro />
-      <Services />
-      <Experience />
-      <Works />
-      <Portfolio />
-      <Testimonial />
+      <main>
+        <HeroSection />
+        <JobCategories />
+        <FeaturedJobs />
+        <HowItWorks />
+        <Statistics />
+        <CompanyShowcase />
+        <CTASection />
+      </main>
       <Footer />
     </div>
   );
