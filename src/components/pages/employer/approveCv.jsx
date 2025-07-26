@@ -506,7 +506,7 @@ const ApproveCV = () => {
               </p>
             </div>
             <button
-              onClick={() => navigate(`/employer/job/${jobId}`)}
+              onClick={() => navigate(`/jobdetails/${jobId}`)}
               className="flex items-center text-blue-600 hover:text-blue-800 font-medium text-sm md:text-base"
             >
               View Job Details
