@@ -42,7 +42,7 @@ const ApproveCV = () => {
   const batchAnalyzeApplications = async (forceReanalyze = false) => {
     const token = getAuthToken();
     setIsAnalyzing(true);
-    
+
     try {
       const response = await fetch(
         `http://localhost:5000/api/ai-matching/jobs/${jobId}/batch-analyze`,
@@ -61,11 +61,11 @@ const ApproveCV = () => {
 
       const data = await response.json();
       toastr.success(`AI Analysis completed! ${data.result.analyzedApplications}/${data.result.totalApplications} applications analyzed`);
-      
+
       // Refresh applications with new AI data
       await fetchApplications();
       await fetchAiAnalytics();
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to analyze applications");
       console.error("Batch analyze error:", error);
@@ -91,7 +91,7 @@ const ApproveCV = () => {
 
       const data = await response.json();
       setTopCandidates(data.result.topCandidates || []);
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to load top candidates");
       console.error("Fetch top candidates error:", error);
@@ -139,14 +139,14 @@ const ApproveCV = () => {
 
       const data = await response.json();
       toastr.success("AI analysis completed!");
-      
+
       // Update the specific application in state
-      setApplications(prev => prev.map(app => 
-        app._id === applicationId 
+      setApplications(prev => prev.map(app =>
+        app._id === applicationId
           ? { ...app, aiAnalysis: data.result.aiAnalysis }
           : app
       ));
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to analyze application");
       console.error("Analyze application error:", error);
@@ -209,11 +209,34 @@ const ApproveCV = () => {
 
   const toggleSelectAll = () => {
     const pendingIds = getPendingApplicationIds();
-    if (selectedApplicants.length === pendingIds.length) {
-      setSelectedApplicants([]);
+    const allPendingSelected = pendingIds.length > 0 &&
+      pendingIds.every(id => selectedApplicants.includes(id));
+
+    if (allPendingSelected) {
+      setSelectedApplicants(prev =>
+        prev.filter(id => !pendingIds.includes(id))
+      );
     } else {
-      setSelectedApplicants(pendingIds);
+      setSelectedApplicants(prev =>
+        [...new Set([...prev, ...pendingIds])]
+      );
     }
+  };
+
+  const getPendingApplicationIds = () => {
+    return applications
+      .filter(app => app.status === "pending")
+      .map(app => app._id);
+  };
+
+  const getAnalysisTypeIndicator = (aiAnalysis) => {
+    const isAutomated = aiAnalysis.automatedAnalysis || aiAnalysis.analysisType === 'automated';
+
+    return {
+      text: isAutomated ? 'Auto Analysis' : 'Manual Analysis',
+      color: isAutomated ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800',
+      icon: isAutomated ? FiZap : FiUser
+    };
   };
 
   const handleScheduleChange = (e) => {
@@ -389,6 +412,48 @@ const ApproveCV = () => {
       closeBulkScheduleModal();
     } catch (error) {
       toastr.error(error.message || "Failed to schedule interviews");
+    }
+  };
+
+  const getMatchScoreColor = (score) => {
+    if (score >= 80) return "bg-green-100 text-green-800";
+    if (score >= 60) return "bg-blue-100 text-blue-800";
+    if (score >= 40) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const getRecommendationBadge = (recommendation) => {
+    switch (recommendation?.toLowerCase()) {
+      case 'highly_recommended':
+        return {
+          text: 'Highly Recommended',
+          color: 'bg-green-100 text-green-800',
+          icon: FiStar
+        };
+      case 'recommended':
+        return {
+          text: 'Recommended',
+          color: 'bg-blue-100 text-blue-800',
+          icon: FiTrendingUp
+        };
+      case 'consider':
+        return {
+          text: 'Consider',
+          color: 'bg-yellow-100 text-yellow-800',
+          icon: FiTarget
+        };
+      case 'not_recommended':
+        return {
+          text: 'Not Recommended',
+          color: 'bg-red-100 text-red-800',
+          icon: FiBarChart2
+        };
+      default:
+        return {
+          text: 'No Recommendation',
+          color: 'bg-gray-100 text-gray-800',
+          icon: FiBarChart2
+        };
     }
   };
 
@@ -618,25 +683,27 @@ const ApproveCV = () => {
           </div>
         </div>
 
-        {/* Split View Container */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Applicants List Panel */}
           <div className="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="text-lg font-semibold text-gray-800">Applicants</h2>
               <div className="flex items-center">
                 <button
                   onClick={toggleSelectAll}
-                  className={`flex items-center text-sm ${selectedApplicants.length === pendingApplicationIds.length && pendingApplicationIds.length > 0
-                    ? 'text-blue-600'
-                    : 'text-gray-600'
-                    }`}
+                  className={`flex items-center text-sm ${pendingApplicationIds.length > 0 &&
+                      pendingApplicationIds.every(id => selectedApplicants.includes(id))
+                      ? 'text-blue-600'
+                      : 'text-gray-600'
+                    } ${pendingApplicationIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={pendingApplicationIds.length === 0}
                 >
                   <FiCheckSquare className="mr-1" size={16} />
                   <span>
-                    {selectedApplicants.length === pendingApplicationIds.length && pendingApplicationIds.length > 0
-                      ? 'Deselect All Pending'
-                      : 'Select All Pending'}
+                    {pendingApplicationIds.length === 0
+                      ? 'No Pending Applications'
+                      : pendingApplicationIds.every(id => selectedApplicants.includes(id))
+                        ? 'Deselect All Pending'
+                        : 'Select All Pending'}
                   </span>
                 </button>
               </div>
@@ -658,6 +725,7 @@ const ApproveCV = () => {
                       <div className="flex items-start">
                         <input
                           type="checkbox"
+                          disabled={application.status !== "pending"}
                           checked={selectedApplicants.includes(application._id)}
                           onChange={() => toggleApplicantSelection(application._id)}
                           className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded"
@@ -693,37 +761,37 @@ const ApproveCV = () => {
                             </span>
                           </div>
 
-                            <p className="text-sm text-gray-600 truncate flex items-center mt-1">
-                              <FiBriefcase className="mr-1.5 flex-shrink-0" size={12} />
-                              <span className="truncate">{application.cvProfileId?.headline || "No headline provided"}</span>
-                            </p>
+                          <p className="text-sm text-gray-600 truncate flex items-center mt-1">
+                            <FiBriefcase className="mr-1.5 flex-shrink-0" size={12} />
+                            <span className="truncate">{application.cvProfileId?.headline || "No headline provided"}</span>
+                          </p>
 
-                            <div className="flex items-center text-xs text-gray-500 mt-2">
-                              <FiCalendar className="mr-1.5 flex-shrink-0" size={12} />
-                              <span>Applied: {new Date(application.applicationDate).toLocaleDateString()}</span>
-                              {/* Show analysis date if available */}
-                              {application.aiAnalysis?.analyzedAt && (
-                                <span className="ml-2 text-xs text-gray-400">
-                                  • AI: {new Date(application.aiAnalysis.analyzedAt).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* AI Analysis Preview */}
-                            {application.aiAnalysis && (
-                              <div className="mt-2 text-xs text-gray-600">
-                                <div className="truncate">
-                                  {application.aiAnalysis.explanation?.substring(0, 80)}...
-                                </div>
-                              </div>
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                            <FiCalendar className="mr-1.5 flex-shrink-0" size={12} />
+                            <span>Applied: {new Date(application.applicationDate).toLocaleDateString()}</span>
+                            {/* Show analysis date if available */}
+                            {application.aiAnalysis?.analyzedAt && (
+                              <span className="ml-2 text-xs text-gray-400">
+                                • AI: {new Date(application.aiAnalysis.analyzedAt).toLocaleDateString()}
+                              </span>
                             )}
                           </div>
 
-                          <FiChevronRight
-                            className={`ml-2 mt-1.5 flex-shrink-0 ${activeApplicant?._id === application._id ? 'text-blue-500' : 'text-gray-400'
-                              }`}
-                          />
+                          {/* AI Analysis Preview */}
+                          {application.aiAnalysis && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              <div className="truncate">
+                                {application.aiAnalysis.explanation?.substring(0, 80)}...
+                              </div>
+                            </div>
+                          )}
                         </div>
+
+                        <FiChevronRight
+                          className={`ml-2 mt-1.5 flex-shrink-0 ${activeApplicant?._id === application._id ? 'text-blue-500' : 'text-gray-400'
+                            }`}
+                        />
+                      </div>
 
                       <div className="mt-3 flex gap-2">
                         <button
@@ -825,7 +893,7 @@ const ApproveCV = () => {
                           {activeApplicant.aiAnalysis.matchScore}% AI Match
                         </div>
                       )}
-                      
+
                       {/* Recommendation Badge */}
                       {activeApplicant.aiAnalysis?.overallRecommendation && (
                         <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${getRecommendationBadge(activeApplicant.aiAnalysis.overallRecommendation).color}`}>
@@ -843,18 +911,17 @@ const ApproveCV = () => {
                       )}
 
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                          activeApplicant.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : activeApplicant.status === "accepted"
-                              ? "bg-green-100 text-green-800"
-                              : activeApplicant.status === "interview_scheduled"
-                                ? "bg-blue-100 text-blue-800"
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${activeApplicant.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : activeApplicant.status === "accepted"
+                            ? "bg-green-100 text-green-800"
+                            : activeApplicant.status === "interview_scheduled"
+                              ? "bg-blue-100 text-blue-800"
                               : "bg-red-100 text-red-800"
                           }`}
                       >
-                        {activeApplicant.status === "interview_scheduled" 
-                          ? "Interview Scheduled" 
+                        {activeApplicant.status === "interview_scheduled"
+                          ? "Interview Scheduled"
                           : activeApplicant.status.charAt(0).toUpperCase() + activeApplicant.status.slice(1)}
                       </span>
                       <p className="text-xs text-gray-500 mt-1">
@@ -895,7 +962,7 @@ const ApproveCV = () => {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="space-y-4">
                         {/* AI Explanation */}
                         <div>
@@ -1084,11 +1151,10 @@ const ApproveCV = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 mr-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                              index === 0 ? 'bg-yellow-500' : 
-                              index === 1 ? 'bg-gray-400' : 
-                              index === 2 ? 'bg-orange-600' : 'bg-blue-500'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${index === 0 ? 'bg-yellow-500' :
+                              index === 1 ? 'bg-gray-400' :
+                                index === 2 ? 'bg-orange-600' : 'bg-blue-500'
+                              }`}>
                               #{index + 1}
                             </div>
                           </div>
@@ -1218,7 +1284,7 @@ const ApproveCV = () => {
                     Schedule Interview
                   </h2>
                   <p className="text-blue-100 mt-1">
-                    {selectedApplicants.length === 1 
+                    {selectedApplicants.length === 1
                       ? `Schedule interview for 1 selected applicant`
                       : `Schedule interviews for ${selectedApplicants.length} selected applicants`
                     }
@@ -1245,7 +1311,7 @@ const ApproveCV = () => {
                   </svg>
                   Select Available Dates
                 </h3>
-                
+
                 <div className="bg-gray-50 rounded-xl p-6">
                   {/* Calendar Navigation */}
                   <div className="flex items-center justify-between mb-6">
@@ -1293,13 +1359,12 @@ const ApproveCV = () => {
                           key={index}
                           onClick={() => handleDateClick(date)}
                           disabled={isPast}
-                          className={`p-3 text-sm rounded-xl font-medium transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105'
-                              : isPast
-                                ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                                : 'hover:bg-blue-100 hover:text-blue-700 text-gray-700 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md'
-                          }`}
+                          className={`p-3 text-sm rounded-xl font-medium transition-all duration-200 ${isSelected
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105'
+                            : isPast
+                              ? 'text-gray-300 cursor-not-allowed bg-gray-100'
+                              : 'hover:bg-blue-100 hover:text-blue-700 text-gray-700 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md'
+                            }`}
                         >
                           {index + 1}
                         </button>
@@ -1321,7 +1386,7 @@ const ApproveCV = () => {
                       {selectedDates.length} {selectedDates.length === 1 ? 'date' : 'dates'} selected
                     </span>
                   </h3>
-                  
+
                   <div className="grid gap-4">
                     {selectedDates.map((selectedDate, dateIndex) => (
                       <div key={dateIndex} className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-colors">
@@ -1332,10 +1397,10 @@ const ApproveCV = () => {
                             </div>
                             <div>
                               <span className="font-semibold text-lg text-gray-800">
-                                {selectedDate.date.toLocaleDateString('en-US', { 
+                                {selectedDate.date.toLocaleDateString('en-US', {
                                   weekday: 'long',
-                                  month: 'long', 
-                                  day: 'numeric' 
+                                  month: 'long',
+                                  day: 'numeric'
                                 })}
                               </span>
                               <p className="text-sm text-gray-500">Available time slots</p>
