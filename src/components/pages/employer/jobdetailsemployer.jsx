@@ -472,16 +472,6 @@ const JobDetailsEmployer = () => {
                       </svg>
                       Edit Job
                     </button>
-
-                    <a
-                      href={`/questions/loadskilltest/${jobDetails?._id}`}
-                      className="w-full bg-purple-600 text-white text-center py-3 px-4 rounded-md hover:bg-purple-700 transition-colors font-medium flex items-center justify-center group"
-                    >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                      </svg>
-                      Create Skill Test
-                    </a>
                     <Link to={`/listApplyCv/${jobDetails._id}`} className="w-full bg-green-600 text-white text-center py-3 px-4 rounded-md hover:bg-green-700 transition-colors font-medium flex items-center justify-center group"
                     >
                       View Applications

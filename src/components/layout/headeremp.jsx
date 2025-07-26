@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { UserContext } from "../../Context";
 import axios from 'axios';
 import ChatBox from './chatbox';
 
 const HeaderEmployer = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const { user, logout } = useContext(UserContext);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -43,8 +45,7 @@ const HeaderEmployer = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    setIsLoggedIn(false);
+    logout();
     navigate("/");
   };
 
@@ -201,7 +202,7 @@ const HeaderEmployer = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
               </svg>
             </button>
-            
+
             {showNotifications && (
               <div className="absolute right-0 mt-3 w-96 bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 transform transition-all duration-300 animate-in slide-in-from-top-2">
                 <div className="p-6">
@@ -209,7 +210,7 @@ const HeaderEmployer = () => {
                     <h3 className="text-lg font-bold text-gray-800">Notifications</h3>
                     <span className="text-sm text-gray-500">{notifications.filter(n => !n.read).length} unread</span>
                   </div>
-                  
+
                   <div className="max-h-96 overflow-y-auto space-y-3">
                     {notifications.length === 0 ? (
                       <div className="text-center py-8">
@@ -225,11 +226,10 @@ const HeaderEmployer = () => {
                       notifications.map((notif, index) => (
                         <div
                           key={notif.id}
-                          className={`p-4 rounded-xl transition-all duration-300 ${
-                            notif.read 
-                              ? "bg-gray-50/50 border border-gray-100" 
-                              : "bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm"
-                          }`}
+                          className={`p-4 rounded-xl transition-all duration-300 ${notif.read
+                            ? "bg-gray-50/50 border border-gray-100"
+                            : "bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm"
+                            }`}
                         >
                           <div className="flex items-start space-x-3">
                             <div className={`w-2 h-2 rounded-full mt-2 ${notif.read ? 'bg-gray-300' : 'bg-blue-500'}`}></div>
@@ -259,7 +259,7 @@ const HeaderEmployer = () => {
 
           {/* Account Menu */}
           <div className="relative dropdown-container">
-            <button 
+            <button
               onClick={toggleAccountMenu}
               className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
@@ -283,7 +283,7 @@ const HeaderEmployer = () => {
                     </div>
                     <span className="font-medium">Edit Profile</span>
                   </Link>
-                  
+
                   <Link
                     to="/changepass"
                     className="flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-all duration-300 group"
@@ -295,9 +295,9 @@ const HeaderEmployer = () => {
                     </div>
                     <span className="font-medium">Change Password</span>
                   </Link>
-                  
+
                   <div className="h-px bg-gray-200 my-2 mx-4"></div>
-                  
+
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 group"
@@ -332,7 +332,7 @@ const HeaderEmployer = () => {
               </div>
               <span className="font-medium text-gray-700">Company Profile</span>
             </Link>
-            
+
             <Link
               to="/create-job"
               className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-purple-50 transition-all duration-300"
@@ -345,7 +345,7 @@ const HeaderEmployer = () => {
               </div>
               <span className="font-medium text-gray-700">Post a Job</span>
             </Link>
-            
+
             <Link
               to="/jobslist"
               className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-indigo-50 transition-all duration-300"
@@ -358,7 +358,7 @@ const HeaderEmployer = () => {
               </div>
               <span className="font-medium text-gray-700">My Jobs</span>
             </Link>
-            
+
             <Link
               to="/employer/blogs"
               className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-green-50 transition-all duration-300"
@@ -371,7 +371,7 @@ const HeaderEmployer = () => {
               </div>
               <span className="font-medium text-gray-700">Blogs</span>
             </Link>
-            
+
             <Link
               to="/listApplyCv"
               className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-orange-50 transition-all duration-300"

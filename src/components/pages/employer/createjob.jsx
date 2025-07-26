@@ -17,7 +17,7 @@ const CreateJob = () => {
     salary: 0,
     experienceYears: 0,
     endDate: "",
-    applicantCount:0,
+    applicantCount: 0,
   });
   const [message, setMessage] = useState(null);
   const [position, setPosition] = useState([0, 0]);
@@ -130,12 +130,12 @@ const CreateJob = () => {
       location: location || `${position[0]}, ${position[1]}`,
       salary: parseInt(formData.salary) || 0,
       experienceYears: parseInt(formData.experienceYears) || 0,
-      applicantCount :formData.applicantCount,
+      applicantCount: formData.applicantCount,
       endDate: formData.endDate
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/jobs/create", {
+      const response = await fetch("http://localhost:5000/api/employer/jobs/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -145,6 +145,23 @@ const CreateJob = () => {
         credentials: "include",
       });
 
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (result.result?.upgradeRequired) {
+          setMessage({
+            type: "error",
+            text: `Subscription upgrade needed! ${result.message}`
+          });
+        }
+        else {
+          setMessage({
+            type: "error",
+            text: result.message || "Failed to create job"
+          });
+        }
+        return;
+      }
       if (response.status === 200) {
         const data = await response.json();
         setMessage({ type: "success", text: "Job posted successfully!" });

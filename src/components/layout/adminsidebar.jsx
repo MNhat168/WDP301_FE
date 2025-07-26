@@ -108,7 +108,7 @@ const AdminSidebar = () => {
                 </li> */}
                                 <li>
                                     <Link
-                                        to="/admin/packages/transactions"
+                                        to="/admin/package-transaction"
                                         className="flex items-center px-4 py-3 text-white hover:bg-gray-800"
                                     >
                                         <i className="fas fa-receipt mr-3"></i>

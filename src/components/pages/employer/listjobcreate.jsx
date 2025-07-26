@@ -157,7 +157,11 @@ const ListJobCreate = () => {
   const acceptedJobs = jobList.filter(job => job.status === 'active' || job.status === 'Accept');
   const rejectedJobs = jobList.filter(job => job.status === 'rejected' || job.status === 'Reject');
   const pendingJobs = jobList.filter(job => job.status === 'pending' || job.status === 'Pending');
-  const expiredJobs = jobList.filter(job => job.status === 'expired' || new Date(job.deadline) < new Date());
+  const expiredJobs = jobList.filter(job =>
+    job.status === 'expired' ||
+    job.status === 'inactive' ||
+    new Date(job.endDate) < new Date()
+  );
 
   const getActiveJobs = () => {
     switch (activeTab) {

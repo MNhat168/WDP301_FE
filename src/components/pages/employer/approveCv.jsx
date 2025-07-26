@@ -42,7 +42,7 @@ const ApproveCV = () => {
   const batchAnalyzeApplications = async (forceReanalyze = false) => {
     const token = getAuthToken();
     setIsAnalyzing(true);
-    
+
     try {
       const response = await fetch(
         `http://localhost:5000/api/ai-matching/jobs/${jobId}/batch-analyze`,
@@ -61,11 +61,11 @@ const ApproveCV = () => {
 
       const data = await response.json();
       toastr.success(`AI Analysis completed! ${data.result.analyzedApplications}/${data.result.totalApplications} applications analyzed`);
-      
+
       // Refresh applications with new AI data
       await fetchApplications();
       await fetchAiAnalytics();
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to analyze applications");
       console.error("Batch analyze error:", error);
@@ -91,7 +91,7 @@ const ApproveCV = () => {
 
       const data = await response.json();
       setTopCandidates(data.result.topCandidates || []);
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to load top candidates");
       console.error("Fetch top candidates error:", error);
@@ -139,14 +139,14 @@ const ApproveCV = () => {
 
       const data = await response.json();
       toastr.success("AI analysis completed!");
-      
+
       // Update the specific application in state
-      setApplications(prev => prev.map(app => 
-        app._id === applicationId 
+      setApplications(prev => prev.map(app =>
+        app._id === applicationId
           ? { ...app, aiAnalysis: data.result.aiAnalysis }
           : app
       ));
-      
+
     } catch (error) {
       toastr.error(error.message || "Failed to analyze application");
       console.error("Analyze application error:", error);
@@ -207,76 +207,43 @@ const ApproveCV = () => {
     }
   };
 
-  // AI Utility Functions
-  const getMatchScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600 bg-green-100';
-    if (score >= 60) return 'text-blue-600 bg-blue-100';
-    if (score >= 40) return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
+  const toggleSelectAll = () => {
+    const pendingIds = getPendingApplicationIds();
+    const allPendingSelected = pendingIds.length > 0 &&
+      pendingIds.every(id => selectedApplicants.includes(id));
+
+    if (allPendingSelected) {
+      setSelectedApplicants(prev =>
+        prev.filter(id => !pendingIds.includes(id))
+      );
+    } else {
+      setSelectedApplicants(prev =>
+        [...new Set([...prev, ...pendingIds])]
+      );
+    }
   };
 
-  const getRecommendationBadge = (recommendation) => {
-    const badges = {
-      'highly_recommended': { text: 'Top Pick', color: 'bg-green-100 text-green-800', icon: FiStar },
-      'recommended': { text: 'Good Fit', color: 'bg-blue-100 text-blue-800', icon: FiTarget },
-      'consider': { text: 'Consider', color: 'bg-yellow-100 text-yellow-800', icon: FiTrendingUp },
-      'not_recommended': { text: 'Not Ideal', color: 'bg-red-100 text-red-800', icon: null }
-    };
-    return badges[recommendation] || badges['consider'];
+  const getPendingApplicationIds = () => {
+    return applications
+      .filter(app => app.status === "pending")
+      .map(app => app._id);
   };
 
   const getAnalysisTypeIndicator = (aiAnalysis) => {
-    if (!aiAnalysis) return null;
-    
-    const isRecent = new Date() - new Date(aiAnalysis.analyzedAt) < 60000; // 1 minute
-    const isAuto = aiAnalysis.aiModel?.includes('auto') || isRecent;
-    
+    const isAutomated = aiAnalysis.automatedAnalysis || aiAnalysis.analysisType === 'automated';
+
     return {
-      type: isAuto ? 'auto' : 'manual',
-      text: isAuto ? 'Auto-analyzed' : 'Manual analysis',
-      color: isAuto ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700',
-      icon: isAuto ? FiZap : FiUser
+      text: isAutomated ? 'Auto Analysis' : 'Manual Analysis',
+      color: isAutomated ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800',
+      icon: isAutomated ? FiZap : FiUser
     };
   };
 
-  const needsReAnalysis = (aiAnalysis) => {
-    if (!aiAnalysis) return true;
-    
-    // Re-analyze if it's been more than 24 hours
-    const daysSinceAnalysis = (new Date() - new Date(aiAnalysis.analyzedAt)) / (1000 * 60 * 60 * 24);
-    return daysSinceAnalysis > 1;
-  };
-
-  const sortApplications = (apps) => {
-    const sorted = [...apps];
-    switch (sortBy) {
-      case 'matchScore':
-        return sorted.sort((a, b) => (b.aiAnalysis?.matchScore || 0) - (a.aiAnalysis?.matchScore || 0));
-      case 'applicationDate':
-        return sorted.sort((a, b) => new Date(b.applicationDate) - new Date(a.applicationDate));
-      case 'status':
-        const statusOrder = { 'pending': 0, 'interview_scheduled': 1, 'accepted': 2, 'rejected': 3 };
-        return sorted.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-      default:
-        return sorted;
-    }
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedApplicants.length === applications.length) {
-      setSelectedApplicants([]);
-    } else {
-      setSelectedApplicants(applications.map(app => app._id));
-    }
-  };
-
-  // Handle schedule input changes
   const handleScheduleChange = (e) => {
     const { name, value } = e.target;
     setScheduleData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Calendar helper functions
   const getDaysInMonth = (date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   };
@@ -348,6 +315,20 @@ const ApproveCV = () => {
 
   const acceptApplicant = async (applicationId) => {
     await updateApplicationStatus(applicationId, "accepted");
+    setJobDetails(prev => ({
+      ...prev,
+      applicantCount: Math.max(0, prev.applicantCount - 1)
+    }));
+    setApplications(prev =>
+      prev.map(app =>
+        app._id === applicationId
+          ? { ...app, status: 'accepted' }
+          : app
+      )
+    );
+    setSelectedApplicants(prev =>
+      prev.filter(id => id !== applicationId)
+    );
   };
 
   useEffect(() => {
@@ -391,7 +372,6 @@ const ApproveCV = () => {
     setScheduleData({ availableSlots: [], note: "" });
   };
 
-
   const sendBulkInterviewInvitations = async () => {
     if (selectedDates.length === 0) {
       toastr.error("Please select at least one available date");
@@ -410,7 +390,7 @@ const ApproveCV = () => {
           },
           credentials: "include",
           body: JSON.stringify({
-            applicationIds: selectedApplicants, 
+            applicationIds: selectedApplicants,
             availableSlots: selectedDates,
             note: scheduleData.note
           }),
@@ -432,6 +412,48 @@ const ApproveCV = () => {
       closeBulkScheduleModal();
     } catch (error) {
       toastr.error(error.message || "Failed to schedule interviews");
+    }
+  };
+
+  const getMatchScoreColor = (score) => {
+    if (score >= 80) return "bg-green-100 text-green-800";
+    if (score >= 60) return "bg-blue-100 text-blue-800";
+    if (score >= 40) return "bg-yellow-100 text-yellow-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const getRecommendationBadge = (recommendation) => {
+    switch (recommendation?.toLowerCase()) {
+      case 'highly_recommended':
+        return {
+          text: 'Highly Recommended',
+          color: 'bg-green-100 text-green-800',
+          icon: FiStar
+        };
+      case 'recommended':
+        return {
+          text: 'Recommended',
+          color: 'bg-blue-100 text-blue-800',
+          icon: FiTrendingUp
+        };
+      case 'consider':
+        return {
+          text: 'Consider',
+          color: 'bg-yellow-100 text-yellow-800',
+          icon: FiTarget
+        };
+      case 'not_recommended':
+        return {
+          text: 'Not Recommended',
+          color: 'bg-red-100 text-red-800',
+          icon: FiBarChart2
+        };
+      default:
+        return {
+          text: 'No Recommendation',
+          color: 'bg-gray-100 text-gray-800',
+          icon: FiBarChart2
+        };
     }
   };
 
@@ -462,6 +484,9 @@ const ApproveCV = () => {
       </div>
     );
   }
+
+  // Get pending application IDs for use in JSX
+  const pendingApplicationIds = getPendingApplicationIds();
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -658,25 +683,27 @@ const ApproveCV = () => {
           </div>
         </div>
 
-        {/* Split View Container */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Applicants List Panel */}
           <div className="w-full lg:w-1/3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="text-lg font-semibold text-gray-800">Applicants</h2>
               <div className="flex items-center">
                 <button
                   onClick={toggleSelectAll}
-                  className={`flex items-center text-sm ${selectedApplicants.length === applications.length && applications.length > 0
+                  className={`flex items-center text-sm ${pendingApplicationIds.length > 0 &&
+                      pendingApplicationIds.every(id => selectedApplicants.includes(id))
                       ? 'text-blue-600'
                       : 'text-gray-600'
-                    }`}
+                    } ${pendingApplicationIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={pendingApplicationIds.length === 0}
                 >
                   <FiCheckSquare className="mr-1" size={16} />
                   <span>
-                    {selectedApplicants.length === applications.length && applications.length > 0
-                      ? 'Deselect All'
-                      : 'Select All'}
+                    {pendingApplicationIds.length === 0
+                      ? 'No Pending Applications'
+                      : pendingApplicationIds.every(id => selectedApplicants.includes(id))
+                        ? 'Deselect All Pending'
+                        : 'Select All Pending'}
                   </span>
                 </button>
               </div>
@@ -686,188 +713,112 @@ const ApproveCV = () => {
             <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
               {applications.length > 0 ? (
                 <div className="divide-y divide-gray-100">
-                  {sortApplications(applications).map((application) => {
-                    const matchScore = application.aiAnalysis?.matchScore;
-                    const recommendation = application.aiAnalysis?.overallRecommendation;
-                    const badge = getRecommendationBadge(recommendation);
-                    const IconComponent = badge.icon;
-
-                    return (
-                      <div
-                        key={application._id}
-                        className={`p-4 cursor-pointer transition-colors ${activeApplicant?._id === application._id
-                          ? 'bg-blue-50 border-l-4 border-blue-500'
-                          : 'hover:bg-gray-50'
-                          }`}
-                        onClick={() => handleSelectApplicant(application)}
-                      >
-                        <div className="flex items-start">
-                          <input
-                            type="checkbox"
-                            checked={selectedApplicants.includes(application._id)}
-                            onChange={() => toggleApplicantSelection(application._id)}
-                            className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded"
-                          />
-                          <div className="mr-3">
-                            {application.userId?.avatar ? (
-                              <img
-                                src={application.userId.avatar}
-                                alt="Profile"
-                                className="w-10 h-10 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-500">
-                                <FiUser size={18} />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-medium text-gray-900 truncate">
-                                {application.userId?.firstName + " " + application.userId?.lastName || "Applicant"}
-                              </h3>
-                              <div className="flex flex-col items-end ml-2 space-y-1">
-                                {/* AI Match Score */}
-                                {matchScore && (
-                                  <div className={`px-2 py-0.5 rounded-full text-xs font-bold ${getMatchScoreColor(matchScore)}`}>
-                                    {matchScore}% match
-                                  </div>
-                                )}
-                                {/* Recommendation Badge */}
-                                {recommendation && (
-                                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center ${badge.color}`}>
-                                    {IconComponent && <IconComponent className="mr-1" size={10} />}
-                                    {badge.text}
-                                  </div>
-                                )}
-                                {/* Analysis Type Indicator */}
-                                {application.aiAnalysis && (
-                                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center ${getAnalysisTypeIndicator(application.aiAnalysis).color}`}>
-                                    {(() => {
-                                      const indicator = getAnalysisTypeIndicator(application.aiAnalysis);
-                                      const IndicatorIcon = indicator.icon;
-                                      return (
-                                        <>
-                                          <IndicatorIcon className="mr-1" size={8} />
-                                          {indicator.text}
-                                        </>
-                                      );
-                                    })()}
-                                  </div>
-                                )}
-                                {/* Status Badge */}
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${application.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : application.status === "accepted"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                    }`}
-                                >
-                                  {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                                </span>
-                              </div>
-                            </div>
-
-                            <p className="text-sm text-gray-600 truncate flex items-center mt-1">
-                              <FiBriefcase className="mr-1.5 flex-shrink-0" size={12} />
-                              <span className="truncate">{application.cvProfileId?.headline || "No headline provided"}</span>
-                            </p>
-
-                            <div className="flex items-center text-xs text-gray-500 mt-2">
-                              <FiCalendar className="mr-1.5 flex-shrink-0" size={12} />
-                              <span>Applied: {new Date(application.applicationDate).toLocaleDateString()}</span>
-                              {/* Show analysis date if available */}
-                              {application.aiAnalysis?.analyzedAt && (
-                                <span className="ml-2 text-xs text-gray-400">
-                                  • AI: {new Date(application.aiAnalysis.analyzedAt).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* AI Analysis Preview */}
-                            {application.aiAnalysis && (
-                              <div className="mt-2 text-xs text-gray-600">
-                                <div className="truncate">
-                                  {application.aiAnalysis.explanation?.substring(0, 80)}...
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <FiChevronRight
-                            className={`ml-2 mt-1.5 flex-shrink-0 ${activeApplicant?._id === application._id ? 'text-blue-500' : 'text-gray-400'
-                              }`}
-                          />
-                        </div>
-
-                        <div className="mt-3 flex gap-2">
-                          {/* Smart Analyze Button */}
-                          {!application.aiAnalysis ? (
-                            // No analysis - show analyze button
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                analyzeApplication(application._id);
-                              }}
-                              className="text-xs px-2.5 py-1.5 rounded bg-purple-100 text-purple-800 hover:bg-purple-200 flex items-center"
-                            >
-                              <FiZap className="mr-1" size={10} />
-                              AI Analyze
-                            </button>
-                          ) : needsReAnalysis(application.aiAnalysis) ? (
-                            // Old analysis - show re-analyze button
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                analyzeApplication(application._id);
-                              }}
-                              className="text-xs px-2.5 py-1.5 rounded bg-orange-100 text-orange-800 hover:bg-orange-200 flex items-center"
-                            >
-                              <FiRefreshCw className="mr-1" size={10} />
-                              Re-analyze
-                            </button>
+                  {applications.map((application) => (
+                    <div
+                      key={application._id}
+                      className={`p-4 cursor-pointer transition-colors ${activeApplicant?._id === application._id
+                        ? 'bg-blue-50 border-l-4 border-blue-500'
+                        : 'hover:bg-gray-50'
+                        }`}
+                      onClick={() => handleSelectApplicant(application)}
+                    >
+                      <div className="flex items-start">
+                        <input
+                          type="checkbox"
+                          disabled={application.status !== "pending"}
+                          checked={selectedApplicants.includes(application._id)}
+                          onChange={() => toggleApplicantSelection(application._id)}
+                          className="mt-1 mr-3 h-4 w-4 text-blue-600 rounded"
+                        />
+                        <div className="mr-3">
+                          {application.userId?.avatar ? (
+                            <img
+                              src={application.userId.avatar}
+                              alt="Profile"
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
                           ) : (
-                            // Recent analysis - show refresh button
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                analyzeApplication(application._id);
-                              }}
-                              className="text-xs px-2.5 py-1.5 rounded bg-blue-100 text-blue-800 hover:bg-blue-200 flex items-center"
-                            >
-                              <FiRefreshCw className="mr-1" size={10} />
-                              Refresh
-                            </button>
+                            <div className="bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center text-gray-500">
+                              <FiUser size={18} />
+                            </div>
                           )}
-                          
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              acceptApplicant(application._id);
-                            }}
-                            disabled={application.status !== "interview_scheduled"}
-                            className={`text-xs px-2.5 py-1.5 rounded ${application.status === "interview_scheduled"
-                              ? "bg-green-100 text-green-800 hover:bg-green-200"
-                              : "bg-gray-100 text-gray-500 cursor-not-allowed"
-                              }`}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateApplicationStatus(application._id, "rejected");
-                            }}
-                            className={`text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-800 hover:bg-red-200`}
-                          >
-                            Reject
-                          </button>
                         </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between">
+                            <h3 className="font-medium text-gray-900 truncate">
+                              {application.userId?.firstName + " " + application.userId?.lastName || "Applicant"}
+                            </h3>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ml-2 flex-shrink-0 ${application.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : application.status === "accepted"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                                }`}
+                            >
+                              {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                            </span>
+                          </div>
+
+                          <p className="text-sm text-gray-600 truncate flex items-center mt-1">
+                            <FiBriefcase className="mr-1.5 flex-shrink-0" size={12} />
+                            <span className="truncate">{application.cvProfileId?.headline || "No headline provided"}</span>
+                          </p>
+
+                          <div className="flex items-center text-xs text-gray-500 mt-2">
+                            <FiCalendar className="mr-1.5 flex-shrink-0" size={12} />
+                            <span>Applied: {new Date(application.applicationDate).toLocaleDateString()}</span>
+                            {/* Show analysis date if available */}
+                            {application.aiAnalysis?.analyzedAt && (
+                              <span className="ml-2 text-xs text-gray-400">
+                                • AI: {new Date(application.aiAnalysis.analyzedAt).toLocaleDateString()}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* AI Analysis Preview */}
+                          {application.aiAnalysis && (
+                            <div className="mt-2 text-xs text-gray-600">
+                              <div className="truncate">
+                                {application.aiAnalysis.explanation?.substring(0, 80)}...
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <FiChevronRight
+                          className={`ml-2 mt-1.5 flex-shrink-0 ${activeApplicant?._id === application._id ? 'text-blue-500' : 'text-gray-400'
+                            }`}
+                        />
                       </div>
-                    );
-                  })}
+
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acceptApplicant(application._id);
+                          }}
+                          disabled={application.status == "pending"}
+                          className={`text-xs px-2.5 py-1.5 rounded ${application.status === "interview_scheduled"
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-gray-100 text-gray-500 cursor-not-allowed"
+                            }`}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateApplicationStatus(application._id, "rejected");
+                          }}
+                          className={`text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-800 hover:bg-red-200`}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-center py-8 px-4">
@@ -942,7 +893,7 @@ const ApproveCV = () => {
                           {activeApplicant.aiAnalysis.matchScore}% AI Match
                         </div>
                       )}
-                      
+
                       {/* Recommendation Badge */}
                       {activeApplicant.aiAnalysis?.overallRecommendation && (
                         <div className={`px-3 py-1 rounded-full text-sm font-medium flex items-center ${getRecommendationBadge(activeApplicant.aiAnalysis.overallRecommendation).color}`}>
@@ -964,10 +915,14 @@ const ApproveCV = () => {
                           ? "bg-yellow-100 text-yellow-800"
                           : activeApplicant.status === "accepted"
                             ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
+                            : activeApplicant.status === "interview_scheduled"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-red-100 text-red-800"
                           }`}
                       >
-                        {activeApplicant.status.charAt(0).toUpperCase() + activeApplicant.status.slice(1)}
+                        {activeApplicant.status === "interview_scheduled"
+                          ? "Interview Scheduled"
+                          : activeApplicant.status.charAt(0).toUpperCase() + activeApplicant.status.slice(1)}
                       </span>
                       <p className="text-xs text-gray-500 mt-1">
                         Applied: {new Date(activeApplicant.applicationDate).toLocaleDateString()}
@@ -1007,7 +962,7 @@ const ApproveCV = () => {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="space-y-4">
                         {/* AI Explanation */}
                         <div>
@@ -1196,11 +1151,10 @@ const ApproveCV = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 mr-4">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                              index === 0 ? 'bg-yellow-500' : 
-                              index === 1 ? 'bg-gray-400' : 
-                              index === 2 ? 'bg-orange-600' : 'bg-blue-500'
-                            }`}>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${index === 0 ? 'bg-yellow-500' :
+                              index === 1 ? 'bg-gray-400' :
+                                index === 2 ? 'bg-orange-600' : 'bg-blue-500'
+                              }`}>
                               #{index + 1}
                             </div>
                           </div>
@@ -1330,7 +1284,7 @@ const ApproveCV = () => {
                     Schedule Interview
                   </h2>
                   <p className="text-blue-100 mt-1">
-                    {selectedApplicants.length === 1 
+                    {selectedApplicants.length === 1
                       ? `Schedule interview for 1 selected applicant`
                       : `Schedule interviews for ${selectedApplicants.length} selected applicants`
                     }
@@ -1357,7 +1311,7 @@ const ApproveCV = () => {
                   </svg>
                   Select Available Dates
                 </h3>
-                
+
                 <div className="bg-gray-50 rounded-xl p-6">
                   {/* Calendar Navigation */}
                   <div className="flex items-center justify-between mb-6">
@@ -1405,13 +1359,12 @@ const ApproveCV = () => {
                           key={index}
                           onClick={() => handleDateClick(date)}
                           disabled={isPast}
-                          className={`p-3 text-sm rounded-xl font-medium transition-all duration-200 ${
-                            isSelected
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105'
-                              : isPast
-                                ? 'text-gray-300 cursor-not-allowed bg-gray-100'
-                                : 'hover:bg-blue-100 hover:text-blue-700 text-gray-700 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md'
-                          }`}
+                          className={`p-3 text-sm rounded-xl font-medium transition-all duration-200 ${isSelected
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg transform scale-105'
+                            : isPast
+                              ? 'text-gray-300 cursor-not-allowed bg-gray-100'
+                              : 'hover:bg-blue-100 hover:text-blue-700 text-gray-700 bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md'
+                            }`}
                         >
                           {index + 1}
                         </button>
@@ -1433,7 +1386,7 @@ const ApproveCV = () => {
                       {selectedDates.length} {selectedDates.length === 1 ? 'date' : 'dates'} selected
                     </span>
                   </h3>
-                  
+
                   <div className="grid gap-4">
                     {selectedDates.map((selectedDate, dateIndex) => (
                       <div key={dateIndex} className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-300 transition-colors">
@@ -1444,10 +1397,10 @@ const ApproveCV = () => {
                             </div>
                             <div>
                               <span className="font-semibold text-lg text-gray-800">
-                                {selectedDate.date.toLocaleDateString('en-US', { 
+                                {selectedDate.date.toLocaleDateString('en-US', {
                                   weekday: 'long',
-                                  month: 'long', 
-                                  day: 'numeric' 
+                                  month: 'long',
+                                  day: 'numeric'
                                 })}
                               </span>
                               <p className="text-sm text-gray-500">Available time slots</p>
