@@ -45,19 +45,19 @@ const SubscriptionManagement = () => {
             
             // Use the same API endpoints as PackageList
             const [limitsResponse, usageResponse, subscriptionResponse] = await Promise.all([
-                fetch('http://localhost:5000/api/user/limits', {
+                fetch('https://wdp301-lzse.onrender.com/api/user/limits', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 }),
-                fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+                fetch('https://wdp301-lzse.onrender.com/api/subscriptions/usage-stats', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     }
                 }),
-                fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+                fetch('https://wdp301-lzse.onrender.com/api/subscriptions/my-subscription', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -166,7 +166,7 @@ const SubscriptionManagement = () => {
         setIsSyncing(true);
         try {
             const token = getUserToken();
-            const response = await fetch('http://localhost:5000/api/user/sync-usage', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/user/sync-usage', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -211,7 +211,7 @@ const SubscriptionManagement = () => {
 
             try {
                 // Fetch billing history (not in new subscription system yet)
-                const billingResponse = await fetch('http://localhost:5000/api/subscriptions/billing-history', {
+                const billingResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/billing-history', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -236,7 +236,7 @@ const SubscriptionManagement = () => {
         setIsCancelling(true);
         try {
             const token = getUserToken();
-            const response = await fetch('http://localhost:5000/api/subscriptions/cancel', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/cancel', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -278,7 +278,7 @@ const SubscriptionManagement = () => {
             };
 
             // First, get available plans to find the correct subscription ID
-            const plansResponse = await fetch('http://localhost:5000/api/subscriptions/plans', {
+            const plansResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/plans', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -298,7 +298,7 @@ const SubscriptionManagement = () => {
                 throw new Error(`${targetTier} plan not found`);
             }
 
-            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/subscribe', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

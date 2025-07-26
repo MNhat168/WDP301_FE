@@ -22,7 +22,7 @@ const HomeAdmin = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/user/current', {
+        const response = await axios.get('https://wdp301-lzse.onrender.com/api/user/current', {
           headers: {
             Authorization: `Bearer ${token}`
           },
@@ -38,19 +38,19 @@ const HomeAdmin = () => {
       try {
         setLoading(true);
         const [statsResponse, monthlyResponse, topJobsResponse] = await Promise.all([
-          axios.get('http://localhost:5000/api/admin/dashboard/stats', {
+          axios.get('https://wdp301-lzse.onrender.com/api/admin/dashboard/stats', {
             headers: {
               Authorization: `Bearer ${token}`
             },
             withCredentials: true
           }),
-          axios.get('http://localhost:5000/api/admin/dashboard/monthly-jobs', {
+          axios.get('https://wdp301-lzse.onrender.com/api/admin/dashboard/monthly-jobs', {
             headers: {
               Authorization: `Bearer ${token}`
             },
             withCredentials: true
           }),
-          axios.get('http://localhost:5000/api/admin/dashboard/top-jobs', {
+          axios.get('https://wdp301-lzse.onrender.com/api/admin/dashboard/top-jobs', {
             headers: {
               Authorization: `Bearer ${token}`
             },

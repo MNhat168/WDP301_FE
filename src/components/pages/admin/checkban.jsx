@@ -60,7 +60,7 @@ const useBanCheck = () => {
     //         }
 
     //         try {
-    //             const response = await axios.get(`http://localhost:5000/api/admin/users/check-status/${userId}`, {
+    //             const response = await axios.get(`https://wdp301-lzse.onrender.com/api/admin/users/check-status/${userId}`, {
     //                 withCredentials: true,
     //                 headers: {
     //                     'Authorization': `Bearer ${user.accessToken}`

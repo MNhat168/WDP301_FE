@@ -9,7 +9,7 @@ const UserManagement = () => {
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-    const API_BASE = "http://localhost:5000/api/user";
+    const API_BASE = "https://wdp301-lzse.onrender.com/api/user";
 
     const getAuthToken = () => {
         const user = JSON.parse(localStorage.getItem("user"));

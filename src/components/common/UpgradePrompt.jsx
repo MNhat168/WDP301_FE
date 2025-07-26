@@ -219,10 +219,10 @@ export const useUsageTracking = () => {
 
             try {
                 const [usageResponse, subResponse] = await Promise.all([
-                    fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+                    fetch('https://wdp301-lzse.onrender.com/api/subscriptions/usage-stats', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     }),
-                    fetch('http://localhost:5000/api/subscriptions/current', {
+                    fetch('https://wdp301-lzse.onrender.com/api/subscriptions/current', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     })
                 ]);

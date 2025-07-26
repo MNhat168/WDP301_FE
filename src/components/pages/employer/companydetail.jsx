@@ -29,7 +29,7 @@ const CompanyDetail = () => {
       return;
     }
 
-    fetch("http://localhost:5000/api/companies/my-profile", {
+    fetch("https://wdp301-lzse.onrender.com/api/companies/my-profile", {
       method: "GET",
       headers: {
         'Authorization': `Bearer ${user.accessToken}`
@@ -78,7 +78,7 @@ const CompanyDetail = () => {
       const formData = new FormData();
       formData.append('images', imageFile); // Use the parameter directly
 
-      const response = await fetch('http://localhost:5000/api/user/upload-image', {
+      const response = await fetch('https://wdp301-lzse.onrender.com/api/user/upload-image', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${user.accessToken}`
@@ -111,8 +111,8 @@ const CompanyDetail = () => {
     }
 
     const endpoint = isNewCompany
-      ? "http://localhost:5000/api/companies/"
-      : `http://localhost:5000/api/companies/${companyData.com._id}`;
+      ? "https://wdp301-lzse.onrender.com/api/companies/"
+      : `https://wdp301-lzse.onrender.com/api/companies/${companyData.com._id}`;
 
     const method = isNewCompany ? "POST" : "PUT";
 

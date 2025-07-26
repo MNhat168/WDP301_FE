@@ -19,7 +19,7 @@ const ListJobCreate = () => {
       try {
         setIsLoading(true);
         const token = getAuthToken();
-        const response = await fetch("http://localhost:5000/api/employer/jobs", {
+        const response = await fetch("https://wdp301-lzse.onrender.com/api/employer/jobs", {
           headers: {
             "Authorization": `Bearer ${token}`
           },
@@ -52,7 +52,7 @@ const ListJobCreate = () => {
     if (window.confirm("Are you sure you want to delete this job? This action cannot be undone.")) {
       try {
         const token = getAuthToken();
-        const response = await fetch("http://localhost:5000/api/employer/jobs", {
+        const response = await fetch("https://wdp301-lzse.onrender.com/api/employer/jobs", {
           headers: {
             "Authorization": `Bearer ${token}`
           },

@@ -79,7 +79,7 @@ const JobSearch = () => {
 
             try {
                 // Fetch usage stats
-                const usageResponse = await fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+                const usageResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/usage-stats', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
@@ -92,7 +92,7 @@ const JobSearch = () => {
                 }
 
                 // Fetch current subscription
-                const subResponse = await fetch('http://localhost:5000/api/subscriptions/current', {
+                const subResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/current', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
@@ -208,7 +208,7 @@ const JobSearch = () => {
             queryParams.append('limit', '12'); // Show 12 jobs per page
 
 
-            const response = await fetch(`http://localhost:5000/api/jobs?${queryParams.toString()}`, {
+            const response = await fetch(`https://wdp301-lzse.onrender.com/api/jobs?${queryParams.toString()}`, {
                 headers: {
                     'Authorization': `Bearer ${user?.token}`,
                     'Content-Type': 'application/json'
@@ -302,7 +302,7 @@ const JobSearch = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/jobs/save', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/jobs/save', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

@@ -19,7 +19,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       const credentials = { email, password };
-      const response = await axios.post("http://localhost:5000/api/user/login", credentials, {
+      const response = await axios.post("https://wdp301-lzse.onrender.com/api/user/login", credentials, {
         headers: {
           "Content-Type": "application/json",
         },

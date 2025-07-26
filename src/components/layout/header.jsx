@@ -94,7 +94,7 @@ const Header = () => {
 
       try {
         // Fetch current subscription - Updated endpoint
-        const subResponse = await fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+        const subResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/my-subscription', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'
@@ -107,7 +107,7 @@ const Header = () => {
         }
 
         // Fetch usage stats
-        const usageResponse = await fetch('http://localhost:5000/api/subscriptions/usage-stats', {
+        const usageResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/usage-stats', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json'

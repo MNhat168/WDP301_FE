@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://wdp301-lzse.onrender.com/api';
 
 // Get auth headers
 const getAuthHeaders = () => {

@@ -93,7 +93,7 @@ const JobDetail = () => {
             }
             setLoading(true);
             try {
-                const response = await fetch(`http://localhost:5000/api/jobs/${jobId}`);
+                const response = await fetch(`https://wdp301-lzse.onrender.com/api/jobs/${jobId}`);
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
@@ -120,7 +120,7 @@ const JobDetail = () => {
         const fetchApplicationStatus = async () => {
             if (!jobId || !userIsLoggedIn) return;
             try {
-                const response = await fetch(`http://localhost:5000/api/applications/status/${jobId}`, {
+                const response = await fetch(`https://wdp301-lzse.onrender.com/api/applications/status/${jobId}`, {
                     headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.accessToken}` }
                 });
 
@@ -143,7 +143,7 @@ const JobDetail = () => {
                 const user = JSON.parse(localStorage.getItem('user'));
                 const token = user?.token || user?.accessToken;
                 
-                const response = await fetch(`http://localhost:5000/api/jobs/${jobId}/favorite-status`, {
+                const response = await fetch(`https://wdp301-lzse.onrender.com/api/jobs/${jobId}/favorite-status`, {
                     headers: { 
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
@@ -174,7 +174,7 @@ const JobDetail = () => {
 
         setIsActionLoading(true);
         try {
-            const response = await fetch(`http://localhost:5000/api/applications`, {
+            const response = await fetch(`https://wdp301-lzse.onrender.com/api/applications`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -210,7 +210,7 @@ const JobDetail = () => {
         setIsActionLoading(true);
         try {
             const response = await fetch(
-                `http://localhost:5000/api/applications/${applicationStatus.applicationId}`,
+                `https://wdp301-lzse.onrender.com/api/applications/${applicationStatus.applicationId}`,
                 {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user'))?.accessToken}` }

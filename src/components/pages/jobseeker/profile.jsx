@@ -35,7 +35,7 @@ const Profile = () => {
     const [error, setError] = useState('');
     const [passwordError, setPasswordError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:5000/api/user'
+    const API_BASE_URL = 'https://wdp301-lzse.onrender.com/api/user'
 
     useEffect(() => {
         const user = localStorage.getItem("user");

@@ -55,7 +55,7 @@ const FavoriteJob = () => {
                 const user = JSON.parse(localStorage.getItem('user'));
                 const token = user?.token || user?.accessToken;
     
-                const response = await fetch('http://localhost:5000/api/user/favorites', {
+                const response = await fetch('https://wdp301-lzse.onrender.com/api/user/favorites', {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Accept': 'application/json'
@@ -128,7 +128,7 @@ const FavoriteJob = () => {
             const user = JSON.parse(localStorage.getItem('user'));
             const token = user?.token || user?.accessToken;
 
-            const response = await fetch(`http://localhost:5000/api/jobs/${jobId}/favorite`, {
+            const response = await fetch(`https://wdp301-lzse.onrender.com/api/jobs/${jobId}/favorite`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -200,7 +200,7 @@ const FavoriteJob = () => {
                             <FiHeart className="text-red-500 fill-current h-5 w-5"/>
                             {company?.url && (
                                 <img 
-                                    src={`http://localhost:5000${company.url}`} 
+                                    src={`https://wdp301-lzse.onrender.com${company.url}`} 
                                     alt="company logo" 
                                     className="w-12 h-12 rounded-xl shadow-md object-cover border-2 border-gray-100"
                                 />

@@ -177,7 +177,7 @@ const Register = () => {
                 phone: formData.phone.trim()
             };
 
-            const response = await axios.post('http://localhost:5000/api/user/register-jobseeker',
+            const response = await axios.post('https://wdp301-lzse.onrender.com/api/user/register-jobseeker',
                 dataToSend,
                 {
                     headers: {

@@ -20,7 +20,7 @@ const PackagePayment = () => {
     const fetchPackagePrice = async () => {
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const response = await fetch(`http://localhost:5000/api/subscriptions/plans`, {
+            const response = await fetch(`https://wdp301-lzse.onrender.com/api/subscriptions/plans`, {
                 headers: {
                     'Authorization': `Bearer ${user?.token || user?.accessToken}`
                 }
@@ -53,7 +53,7 @@ const PackagePayment = () => {
         e.preventDefault();
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/subscribe', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

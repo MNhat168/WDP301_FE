@@ -33,7 +33,7 @@ const CreateJob = () => {
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch("http://localhost:5000/api/categories/", {
+        const response = await fetch("https://wdp301-lzse.onrender.com/api/categories/", {
           method: "GET",
           credentials: "include",
         });
@@ -135,7 +135,7 @@ const CreateJob = () => {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/employer/jobs/create", {
+      const response = await fetch("https://wdp301-lzse.onrender.com/api/employer/jobs/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

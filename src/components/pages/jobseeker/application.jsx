@@ -277,7 +277,7 @@ const Application = () => {
                         <div className="flex items-center space-x-2">
                             {company?.url && (
                                 <img 
-                                    src={`http://localhost:5000${company.url}`} 
+                                    src={`https://wdp301-lzse.onrender.com${company.url}`} 
                                     alt="company logo" 
                                     className="w-12 h-12 rounded-xl shadow-md object-cover border-2 border-gray-100"
                                 />

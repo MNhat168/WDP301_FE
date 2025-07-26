@@ -18,7 +18,7 @@ const AdminCompaniesPage = () => {
         const fetchCompanies = async () => {
             try {
                 const token = localStorage.getItem('accessToken');
-                const response = await axios.get(`http://localhost:5000/api/companies?page=${currentPage}&limit=${itemsPerPage}&search=${searchTerm}`, {
+                const response = await axios.get(`https://wdp301-lzse.onrender.com/api/companies?page=${currentPage}&limit=${itemsPerPage}&search=${searchTerm}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
@@ -50,12 +50,12 @@ const AdminCompaniesPage = () => {
             const token = localStorage.getItem('accessToken');
 
             // Fetch company details
-            const companyResponse = await axios.get(`http://localhost:5000/api/companies/${company._id}`, {
+            const companyResponse = await axios.get(`https://wdp301-lzse.onrender.com/api/companies/${company._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             // Fetch company jobs
-            const jobsResponse = await axios.get(`http://localhost:5000/api/companies/${company._id}/jobs`, {
+            const jobsResponse = await axios.get(`https://wdp301-lzse.onrender.com/api/companies/${company._id}/jobs`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -77,7 +77,7 @@ const AdminCompaniesPage = () => {
         try {
             const token = localStorage.getItem('accessToken');
             const response = await axios.put(
-                `http://localhost:5000/api/companies/${selectedCompany._id}`,
+                `https://wdp301-lzse.onrender.com/api/companies/${selectedCompany._id}`,
                 { status: newStatus },
                 { headers: { Authorization: `Bearer ${token}` } }
             );

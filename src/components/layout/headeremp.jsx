@@ -25,7 +25,7 @@ const HeaderEmployer = () => {
   const fetchNotifications = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:5000/api/notification/employer-notifications",
+        "https://wdp301-lzse.onrender.com/api/notification/employer-notifications",
         { withCredentials: true }
       );
 

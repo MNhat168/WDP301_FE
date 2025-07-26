@@ -40,7 +40,7 @@ const PaymentResult = () => {
                 return;
             }
 
-            const response = await fetch(`http://localhost:5000/api/payments/status/${linkId}`, {
+            const response = await fetch(`https://wdp301-lzse.onrender.com/api/payments/status/${linkId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'

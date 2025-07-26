@@ -11,7 +11,7 @@ const JobList = () => {
     const token = localStorage.getItem('accessToken');
     const checkAuth = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/user/current', {
+            const response = await axios.get('https://wdp301-lzse.onrender.com/api/user/current', {
                 headers: {
                     Authorization: `Bearer ${token}`  // Add this
                 },
@@ -28,7 +28,7 @@ const JobList = () => {
 
     const fetchJobs = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/jobs/admin/pending', {
+            const response = await axios.get('https://wdp301-lzse.onrender.com/api/jobs/admin/pending', {
                 headers: {
                     Authorization: `Bearer ${token}`  // Add this
                 },
@@ -45,7 +45,7 @@ const JobList = () => {
     const handleStatusChange = async (jobId, status) => {
         try {
             const response = await axios.patch(
-                `http://localhost:5000/api/jobs/admin/${jobId}/status`,
+                `https://wdp301-lzse.onrender.com/api/jobs/admin/${jobId}/status`,
                 { status },
                 {
                     headers: {

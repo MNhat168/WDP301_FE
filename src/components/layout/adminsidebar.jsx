@@ -20,7 +20,7 @@ const AdminSidebar = () => {
         const checkAuth = async () => {
             const token = localStorage.getItem('accessToken');
             try {
-                const response = await axios.get('http://localhost:5000/api/user/current', {
+                const response = await axios.get('https://wdp301-lzse.onrender.com/api/user/current', {
                     headers: { Authorization: `Bearer ${token}` },
                     withCredentials: true
                 });

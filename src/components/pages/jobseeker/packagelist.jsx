@@ -48,7 +48,7 @@ const PackageList = () => {
             setIsLoading(true);
 
             // Fetch subscription plans
-            const plansResponse = await fetch('http://localhost:5000/api/subscriptions/plans', {
+            const plansResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/plans', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -61,7 +61,7 @@ const PackageList = () => {
             }
 
             // Fetch current subscription
-            const subResponse = await fetch('http://localhost:5000/api/subscriptions/my-subscription', {
+            const subResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/my-subscription', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -80,7 +80,7 @@ const PackageList = () => {
             }
 
             // Fetch usage stats
-            const statsResponse = await fetch('http://localhost:5000/api/user/limits', {
+            const statsResponse = await fetch('https://wdp301-lzse.onrender.com/api/user/limits', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -88,7 +88,7 @@ const PackageList = () => {
             });
             
             // Fetch actual applications for verification
-            const applicationsResponse = await fetch('http://localhost:5000/api/applications/my-applications', {
+            const applicationsResponse = await fetch('https://wdp301-lzse.onrender.com/api/applications/my-applications', {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -143,7 +143,7 @@ const PackageList = () => {
             }
 
             // Fetch billing history
-            const billingResponse = await fetch('http://localhost:5000/api/subscriptions/billing-history', {
+            const billingResponse = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/billing-history', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -177,7 +177,7 @@ const PackageList = () => {
         setIsCancelling(true);
         try {
             const token = getUserToken();
-            const response = await fetch('http://localhost:5000/api/subscriptions/cancel', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/cancel', {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -207,7 +207,7 @@ const PackageList = () => {
         setIsTrialLoading(true);
         try {
             const token = getUserToken();
-            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/subscribe', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -304,7 +304,7 @@ const PackageList = () => {
         e.preventDefault();
         try {
             const token = getUserToken();
-            const response = await fetch('http://localhost:5000/api/subscriptions/subscribe', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/subscriptions/subscribe', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,

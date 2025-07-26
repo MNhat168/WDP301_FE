@@ -47,7 +47,7 @@ const FavoriteButton = ({
         setIsLoading(true);
 
         try {
-            const endpoint = `http://localhost:5000/api/jobs/${jobId}/favorite`;
+            const endpoint = `https://wdp301-lzse.onrender.com/api/jobs/${jobId}/favorite`;
             const method = isFavorite ? 'DELETE' : 'POST';
 
             const response = await fetch(endpoint, {

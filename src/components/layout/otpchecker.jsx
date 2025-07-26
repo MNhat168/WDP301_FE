@@ -44,7 +44,7 @@ const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false, email = 
         setIsVerifying(true);
         try {
             if (isEmployer) {
-                const response = await axios.post(`http://localhost:5000/api/user/verify-register/${email}`, {
+                const response = await axios.post(`https://wdp301-lzse.onrender.com/api/user/verify-register/${email}`, {
                     otp: otp.join(''),
                 }, {
                     headers: {
@@ -58,7 +58,7 @@ const OTPVerificationModal = ({ onSuccess, onClose, isEmployer = false, email = 
                     onSuccess();
                 }
             } else {
-                const response = await axios.post(`http://localhost:5000/api/user/verify-register/${email}`, {
+                const response = await axios.post(`https://wdp301-lzse.onrender.com/api/user/verify-register/${email}`, {
                     otp: otp.join(''),
                 }, {
                     headers: {

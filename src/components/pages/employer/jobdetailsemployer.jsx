@@ -19,7 +19,7 @@ const JobDetailsEmployer = () => {
     const token = getAuthToken();
     if (!id) return;
 
-    fetch(`http://localhost:5000/api/employer/jobs/${id}`, {
+    fetch(`https://wdp301-lzse.onrender.com/api/employer/jobs/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`
       },
@@ -76,7 +76,7 @@ const JobDetailsEmployer = () => {
         status: 'pending' // Set status to pending when updating
       };
 
-      const response = await fetch(`http://localhost:5000/api/employer/jobs/${id}`, {
+      const response = await fetch(`https://wdp301-lzse.onrender.com/api/employer/jobs/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

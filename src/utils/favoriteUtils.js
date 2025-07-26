@@ -22,7 +22,7 @@ export const fetchFavoriteJobs = async () => {
     if (!token) return [];
 
     try {
-        const response = await fetch('http://localhost:5000/api/jobs/favorites', {
+        const response = await fetch('https://wdp301-lzse.onrender.com/api/jobs/favorites', {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'
@@ -67,7 +67,7 @@ export const toggleFavoriteJob = async (jobId, isCurrentlyFavorite, options = {}
     }
 
     try {
-        const endpoint = `http://localhost:5000/api/jobs/${jobId}/favorite`;
+        const endpoint = `https://wdp301-lzse.onrender.com/api/jobs/${jobId}/favorite`;
         const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
 
         const response = await fetch(endpoint, {

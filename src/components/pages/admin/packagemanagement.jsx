@@ -49,7 +49,7 @@ const PackageManagement = () => {
     const fetchPackages = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.get('http://localhost:5000/api/subscriptions/plans', {
+            const response = await axios.get('https://wdp301-lzse.onrender.com/api/subscriptions/plans', {
                 withCredentials: true
             });
 
@@ -90,12 +90,12 @@ const PackageManagement = () => {
                 promotions: formData.promotions
             };
             if (editingPackage) {
-                await axios.put(`http://localhost:5000/api/subscriptions/admin/${editingPackage._id || editingPackage.packageId}`,
+                await axios.put(`https://wdp301-lzse.onrender.com/api/subscriptions/admin/${editingPackage._id || editingPackage.packageId}`,
                     body,
                     { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
                 );
             } else {
-                await axios.post('http://localhost:5000/api/subscriptions/admin',
+                await axios.post('https://wdp301-lzse.onrender.com/api/subscriptions/admin',
                     body,
                     { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
                 );
@@ -127,7 +127,7 @@ const PackageManagement = () => {
     const handleDelete = async (packageId) => {
         if (window.confirm('Are you sure you want to delete this package?')) {
             try {
-                await axios.delete(`http://localhost:5000/api/subscriptions/admin/${packageId}`, {
+                await axios.delete(`https://wdp301-lzse.onrender.com/api/subscriptions/admin/${packageId}`, {
                     withCredentials: true
                 });
                 fetchPackages();

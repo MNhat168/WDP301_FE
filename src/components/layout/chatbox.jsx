@@ -48,7 +48,7 @@ const ChatBox = () => {
 
       try {
         const user = JSON.parse(localStorage.getItem("user"));
-        const response = await fetch("http://localhost:5000/api/user/current", {
+        const response = await fetch("https://wdp301-lzse.onrender.com/api/user/current", {
           credentials: "include",
           headers: {
             'Accept': 'application/json',

@@ -45,7 +45,7 @@ const ApproveCV = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/ai-matching/jobs/${jobId}/batch-analyze`,
+        `https://wdp301-lzse.onrender.com/api/ai-matching/jobs/${jobId}/batch-analyze`,
         {
           method: "POST",
           headers: {
@@ -78,7 +78,7 @@ const ApproveCV = () => {
     const token = getAuthToken();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/ai-matching/jobs/${jobId}/top-candidates?limit=5&includeDetails=true`,
+        `https://wdp301-lzse.onrender.com/api/ai-matching/jobs/${jobId}/top-candidates?limit=5&includeDetails=true`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -102,7 +102,7 @@ const ApproveCV = () => {
     const token = getAuthToken();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/ai-matching/jobs/${jobId}/analytics`,
+        `https://wdp301-lzse.onrender.com/api/ai-matching/jobs/${jobId}/analytics`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -124,7 +124,7 @@ const ApproveCV = () => {
     const token = getAuthToken();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/ai-matching/applications/${applicationId}/analyze`,
+        `https://wdp301-lzse.onrender.com/api/ai-matching/applications/${applicationId}/analyze`,
         {
           method: "POST",
           headers: {
@@ -158,7 +158,7 @@ const ApproveCV = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:5000/api/applications/job/${jobId}`,
+        `https://wdp301-lzse.onrender.com/api/applications/job/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -184,7 +184,7 @@ const ApproveCV = () => {
     const token = getAuthToken();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/applications/${applicationId}/status`,
+        `https://wdp301-lzse.onrender.com/api/applications/${applicationId}/status`,
         {
           method: "PATCH",
           headers: {
@@ -381,7 +381,7 @@ const ApproveCV = () => {
     const token = getAuthToken();
     try {
       const response = await fetch(
-        `http://localhost:5000/api/applications/schedule-bulk`,
+        `https://wdp301-lzse.onrender.com/api/applications/schedule-bulk`,
         {
           method: "PATCH",
           headers: {

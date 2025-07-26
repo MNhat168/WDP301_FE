@@ -47,7 +47,7 @@ const ChangePassword = () => {
                 return;
             }
 
-            const response = await fetch('http://localhost:5000/api/user/change-password', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/user/change-password', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

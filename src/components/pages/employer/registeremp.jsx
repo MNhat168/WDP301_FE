@@ -31,7 +31,7 @@ const RegisterEmployer = () => {
                 phone: formData.phone
             };
 
-            const response = await axios.post('http://localhost:5000/api/user/register-employer',
+            const response = await axios.post('https://wdp301-lzse.onrender.com/api/user/register-employer',
                 dataToSend,  // Send as JSON
                 {
                     headers: {

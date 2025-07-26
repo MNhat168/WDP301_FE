@@ -41,7 +41,7 @@ const PaymentCallback = () => {
     const handlePaymentCapture = async (orderId, payerId) => {
         try {
             const user = JSON.parse(localStorage.getItem("user"));
-            const response = await fetch('http://localhost:5000/api/payments/capture', {
+            const response = await fetch('https://wdp301-lzse.onrender.com/api/payments/capture', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${user?.accessToken || user?.token}`,

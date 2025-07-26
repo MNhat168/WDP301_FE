@@ -32,7 +32,7 @@ const PackageTransactions = () => {
 
                 // Fetch analytics data
                 const analyticsRes = await axios.get(
-                    'http://localhost:5000/api/subscriptions/analytics',
+                    'https://wdp301-lzse.onrender.com/api/subscriptions/analytics',
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
 
@@ -45,7 +45,7 @@ const PackageTransactions = () => {
                 if (filters.search) params.append('search', filters.search);
 
                 const transactionsRes = await axios.get(
-                    `http://localhost:5000/api/subscriptions/admin/transactions?${params.toString()}`,
+                    `https://wdp301-lzse.onrender.com/api/subscriptions/admin/transactions?${params.toString()}`,
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
 
@@ -67,7 +67,7 @@ const PackageTransactions = () => {
             try {
                 const token = localStorage.getItem('accessToken');
                 const res = await axios.get(
-                    'http://localhost:5000/api/subscriptions/admin/payment-status',
+                    'https://wdp301-lzse.onrender.com/api/subscriptions/admin/payment-status',
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
                 setPaymentStatus(res.data.result);

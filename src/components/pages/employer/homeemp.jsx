@@ -23,7 +23,7 @@ const HomeEmp = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const BanPopup = useBanCheck();
-  const API_BASE_URL = 'http://localhost:5000/api/user'
+  const API_BASE_URL = 'https://wdp301-lzse.onrender.com/api/user'
 
   // Fetch user data
   useEffect(() => {
@@ -75,7 +75,7 @@ const HomeEmp = () => {
   //       try {
   //         // You may need to adjust the endpoint based on your backend API
   //         const response = await axios.get(
-  //           `http://localhost:5000/api/dashboard/${user._id || user.userId}`,
+  //           `https://wdp301-lzse.onrender.com/api/dashboard/${user._id || user.userId}`,
   //           { 
   //             withCredentials: true,
   //             headers: {
