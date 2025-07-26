@@ -43,6 +43,7 @@ import SkillTestMark from "./components/pages/employer/skilltestmark";
 import Subscription from "./components/pages/jobseeker/subscription";
 import AdminCompaniesPage from "./components/pages/admin/companiesmanagement";
 import ChatBox from "./components/layout/chatbox";
+import PackageTransaction from "./components/pages/admin/packageTransaction"
 
 const App = () => {
   return (
@@ -91,6 +92,7 @@ const App = () => {
           <Route path="/doskilltest" element={<DoTest />} />
           <Route path="/skill-test-result" element={<SkillTestMark />} />
           <Route path="/admin/companies" element={<AdminCompaniesPage />} />
+          <Route path="/admin/package-transaction" element={<PackageTransaction />} />  
         </Routes>
         <ChatBox />
       </Router>
