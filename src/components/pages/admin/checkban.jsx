@@ -44,15 +44,14 @@ const BanPopup = ({ onClose }) => {
 };
 
 const useBanCheck = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigate ? useNavigate() : null;
     const [showBanPopup, setShowBanPopup] = useState(false);
 
     useEffect(() => {
+        if (!navigate) return;
         const checkBanStatus = async () => {
             const user = JSON.parse(localStorage.getItem('user'));
             if (!user) return;
-
-            // Get user ID from different possible fields
             const userId = user._id || user.userId || user.userData?._id || user.userData?.userId;
             if (!userId) {
                 console.error('No user ID found in stored user data');

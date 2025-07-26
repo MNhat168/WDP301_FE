@@ -46,11 +46,16 @@ import ChatBox from "./components/layout/chatbox";
 import PackageTransaction from "./components/pages/admin/packageTransaction"
 import useBanCheck from "./components/pages/admin/checkban";
 
-const App = () => {
+const BanCheckWrapper = () => {
   useBanCheck();
+  return null; 
+};
+
+const App = () => {
   return (
     <div className="min-h-screen w-full bg-gray-50">
       <Router>
+        <BanCheckWrapper />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/home" element={<HomePage />} />
