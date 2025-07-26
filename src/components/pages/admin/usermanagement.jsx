@@ -56,13 +56,27 @@ const UserManagement = () => {
 
     const handleToggleBan = async (userId) => {
         try {
-            await axios.post(`${API_BASE}/admin/users/${userId}/toggle-ban`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                credentials: "include",
-            });
-            fetchUsers();
+            const response = await axios.post(
+                `${API_BASE}/admin/users/${userId}/toggle-ban`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    credentials: "include",
+                }
+            );
+
+            setUsers(users.map(user =>
+                user.userId === userId
+                    ? {
+                        ...user,
+                        status: response.data.isBlocked ? 'suspended' : 'active',
+                        isBlocked: response.data.isBlocked
+                    }
+                    : user
+            ));
+
             fetchStats();
         } catch (error) {
             console.error('Error toggling ban status:', error);
@@ -70,7 +84,6 @@ const UserManagement = () => {
         }
     };
 
-    // Filter users based on search query
     const filteredUsers = users.filter((user) => {
         const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
         return fullName.includes(search.toLowerCase());

@@ -44,8 +44,10 @@ import Subscription from "./components/pages/jobseeker/subscription";
 import AdminCompaniesPage from "./components/pages/admin/companiesmanagement";
 import ChatBox from "./components/layout/chatbox";
 import PackageTransaction from "./components/pages/admin/packageTransaction"
+import useBanCheck from "./components/pages/admin/checkban";
 
 const App = () => {
+  useBanCheck();
   return (
     <div className="min-h-screen w-full bg-gray-50">
       <Router>
